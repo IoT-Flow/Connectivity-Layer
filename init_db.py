@@ -13,50 +13,61 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from app import create_app
-from src.models import db, User, Device, DeviceAuth, DeviceConfiguration
+from src.models import db, User, Device, DeviceAuth, DeviceConfiguration, Chart, ChartDevice, ChartMeasurement
 from werkzeug.security import generate_password_hash
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 
 def init_database():
     """Initialize the database with tables and sample data"""
-    
     app = create_app()
-    
     with app.app_context():
         try:
-            # Drop all tables (be careful in production!)
-            print("Dropping existing tables...")
-            db.drop_all()
-            
-            # Create all tables
-            print("Creating database tables...")
-            db.create_all()
-            
-            # Create admin user
-            print("Creating admin user...")
-            admin_user = User(
-                username="admin",
-                email="admin@iotflow.local",
-                password_hash=generate_password_hash("admin123"),  # Change in production
-                is_admin=True
-            )
-            db.session.add(admin_user)
-            db.session.flush()  # Flush to get the ID
-            
-            test_user = User(
-                username="test",
-                email="test@iotflow.local",
-                password_hash=generate_password_hash("test123"),  # Change in production
-                is_admin=False
-            )
-            db.session.add(test_user)
-            db.session.flush()  # Flush to get the ID
-            
-            print(f"  - Created admin user: {admin_user.username}")
-            
-            # Create sample devices for testing
-            print("Creating sample devices...")
-            
+            inspector = inspect(db.engine)
+            existing_tables = inspector.get_table_names()
+            all_models = [User, Device, DeviceAuth, DeviceConfiguration, Chart, ChartDevice, ChartMeasurement]
+            missing_tables = []
+            for model in all_models:
+                if model.__tablename__ not in existing_tables:
+                    missing_tables.append(model.__table__)
+            if not existing_tables:
+                print("No database found or database is empty. Creating all tables...")
+                db.create_all()
+            elif missing_tables:
+                print(f"Found missing tables: {[t.name for t in missing_tables]}. Creating only missing tables...")
+                db.create_all(tables=missing_tables)
+            else:
+                print("All tables already exist. No changes made.")
+                return True
+
+            # Create admin user only if not exists
+            admin_user = User.query.filter_by(username="admin").first()
+            if not admin_user:
+                print("Creating admin user...")
+                admin_user = User(
+                    username="admin",
+                    email="admin@iotflow.local",
+                    password_hash=generate_password_hash("admin123"),
+                    is_admin=True
+                )
+                db.session.add(admin_user)
+                db.session.flush()
+            else:
+                print("Admin user already exists.")
+
+            test_user = User.query.filter_by(username="test").first()
+            if not test_user:
+                test_user = User(
+                    username="test",
+                    email="test@iotflow.local",
+                    password_hash=generate_password_hash("test123"),
+                    is_admin=False
+                )
+                db.session.add(test_user)
+                db.session.flush()
+
+            print(f"  - Admin user: {admin_user.username}")
+
+            # Create sample devices for testing only if not exist
             sample_devices = [
                 {
                     'name': 'Temperature Sensor 001',
@@ -65,7 +76,7 @@ def init_database():
                     'location': 'Living Room',
                     'firmware_version': '1.2.3',
                     'hardware_version': 'v2.1',
-                    'user_id': admin_user.id  # Associate with admin user
+                    'user_id': admin_user.id
                 },
                 {
                     'name': 'Smart Door Lock',
@@ -74,7 +85,7 @@ def init_database():
                     'location': 'Front Door',
                     'firmware_version': '2.0.1',
                     'hardware_version': 'v1.0',
-                    'user_id': admin_user.id  # Associate with admin user
+                    'user_id': admin_user.id
                 },
                 {
                     'name': 'Security Camera 01',
@@ -83,19 +94,17 @@ def init_database():
                     'location': 'Front Yard',
                     'firmware_version': '3.1.0',
                     'hardware_version': 'v3.2',
-                    'user_id': admin_user.id  # Associate with admin user
+                    'user_id': admin_user.id
                 }
             ]
-            
             for device_data in sample_devices:
-                device = Device(**device_data)
-                db.session.add(device)
-                print(f"  - Created device: {device.name}")
-            
-            # Commit all changes
+                if not Device.query.filter_by(name=device_data['name']).first():
+                    device = Device(**device_data)
+                    db.session.add(device)
+                    print(f"  - Created device: {device.name}")
             db.session.commit()
             print(f"\nDatabase initialization completed successfully!")
-            print(f"Created {len(sample_devices)} sample devices.")
+            print(f"Created/checked {len(sample_devices)} sample devices.")
             
             # Display admin user credentials for testing
             print("\n" + "="*60)

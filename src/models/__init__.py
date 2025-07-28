@@ -212,3 +212,64 @@ class DeviceConfiguration(db.Model):
     
     def __repr__(self):
         return f'<DeviceConfiguration device_id={self.device_id} key={self.config_key}>'
+
+class Chart(db.Model):
+    """Chart model for storing user-specific chart configurations"""
+    __tablename__ = 'charts'
+    
+    id = db.Column(db.String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = db.Column(db.String(255), nullable=False)
+    title = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    type = db.Column(db.String(50), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'))
+    time_range = db.Column(db.String(20), default='1h')
+    refresh_interval = db.Column(db.Integer, default=30)
+    aggregation = db.Column(db.String(20), default='none')
+    group_by = db.Column(db.String(50), default='device')
+    appearance_config = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    is_active = db.Column(db.Boolean, default=True)
+
+    # Relationships
+    devices = db.relationship('ChartDevice', backref='chart', lazy='dynamic', cascade='all, delete-orphan')
+    measurements = db.relationship('ChartMeasurement', backref='chart', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.Index('idx_user_charts', 'user_id'),
+        db.Index('idx_chart_type', 'type'),
+        db.Index('idx_created_at', 'created_at'),
+    )
+
+class ChartDevice(db.Model):
+    """ChartDevice model for associating devices with charts"""
+    __tablename__ = 'chart_devices'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    chart_id = db.Column(db.String(255), db.ForeignKey('charts.id', ondelete='CASCADE'), nullable=False)
+    device_id = db.Column(db.Integer, db.ForeignKey('devices.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        db.UniqueConstraint('chart_id', 'device_id', name='unique_chart_device'),
+        db.Index('idx_chart_devices', 'chart_id'),
+        db.Index('idx_device_charts', 'device_id'),
+    )
+
+class ChartMeasurement(db.Model):
+    """ChartMeasurement model for storing measurement configurations in charts"""
+    __tablename__ = 'chart_measurements'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    chart_id = db.Column(db.String(255), db.ForeignKey('charts.id', ondelete='CASCADE'), nullable=False)
+    measurement_name = db.Column(db.String(255), nullable=False)
+    display_name = db.Column(db.String(255))
+    color = db.Column(db.String(7))
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        db.UniqueConstraint('chart_id', 'measurement_name', name='unique_chart_measurement'),
+        db.Index('idx_chart_measurements', 'chart_id'),
+        db.Index('idx_measurement_name', 'measurement_name'),
+    )
