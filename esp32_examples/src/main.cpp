@@ -13,6 +13,8 @@ and send simulated telemetry data using the correct topic structure and authenti
 #include <HTTPClient.h>
 #include <DHT.h>
 #include <Preferences.h>
+#include <time.h>
+#include <sys/time.h>
 
 // DHT sensor configuration
 #define DHT_PIN 23      // DHT sensor connected to GPIO 4
@@ -24,12 +26,12 @@ const char* ssid = "CelluleRech";
 const char* password = "cellrech2023$";
 
 // Server settings
-const char* server_host = "10.200.240.128";  // Replace with your server IP
+const char* server_host = "10.200.240.211";  // Replace with your server IP
 const int mqtt_port = 1883;
 const int http_port = 5000;  // Flask server port
 
 // Device configuration
-String device_name = "esp32_001";  // Unique device name
+String device_name = "esp32_1000";  // Unique device name
 String device_type = "esp32";
 String firmware_version = "1.0.0";
 String location = "lab";
@@ -37,6 +39,7 @@ String location = "lab";
 // Runtime variables (will be set after registration)
 int device_id = -1;  // Will be assigned by server
 String device_api_key = "";  // Will be received from server
+String user_id = "170216b4fa0e4c1cb143a77bd1acb516";  // User ID for device association
 bool device_registered = false;
 
 // MQTT client
@@ -59,6 +62,7 @@ const unsigned long EXTENDED_INFO_INTERVAL = 300000;  // 5 minutes
 
 // Function declarations
 void setup_wifi();
+void setup_time();
 void mqtt_callback(char* topic, byte* payload, unsigned int length);
 void reconnect();
 void send_telemetry_data();
@@ -91,6 +95,9 @@ void setup() {
   
   // Connect to WiFi
   setup_wifi();
+  
+  // Setup time synchronization
+  setup_time();
   
   // Register device with server before MQTT
   if (register_device_with_server()) {
@@ -176,6 +183,35 @@ void setup_wifi() {
   } else {
     Serial.println("");
     Serial.println("❌ WiFi connection failed");
+  }
+}
+
+void setup_time() {
+  Serial.println("🕐 Setting up time synchronization...");
+  
+  // Configure NTP servers
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov", "time.google.com");
+  
+  // Wait for time synchronization
+  int timeout = 20; // 20 seconds timeout
+  while (!time(nullptr) && timeout > 0) {
+    delay(1000);
+    Serial.print(".");
+    timeout--;
+  }
+  
+  if (timeout > 0) {
+    Serial.println("");
+    Serial.println("✅ Time synchronized with NTP server");
+    
+    // Print current time
+    time_t now = time(nullptr);
+    Serial.print("Current time: ");
+    Serial.println(ctime(&now));
+  } else {
+    Serial.println("");
+    Serial.println("⚠️ Failed to synchronize time with NTP server");
+    Serial.println("Will use system time (may be inaccurate)");
   }
 }
 
@@ -468,9 +504,21 @@ void send_extended_device_info() {
 }
 
 String get_iso_timestamp() {
-  // Simple timestamp - in production, use NTP for accurate time
-  unsigned long epoch = millis() / 1000;
-  return String(epoch);
+  time_t now = time(nullptr);
+  
+  // Check if time is synchronized (not 1970)
+  if (now < 1000000000) {  // If time is less than year 2001, it's probably not synchronized
+    // Fallback to millis-based timestamp
+    unsigned long epoch = millis() / 1000;
+    return String(epoch);
+  }
+  
+  // Convert to ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
+  struct tm *timeinfo = gmtime(&now);
+  char buffer[25];
+  strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", timeinfo);
+  
+  return String(buffer);
 }
 
 bool register_device_with_server() {
@@ -496,8 +544,7 @@ bool register_device_with_server() {
   doc["name"] = device_name;
   doc["device_type"] = device_type;
   doc["description"] = "ESP32 IoT device with DHT11 temperature and humidity sensor";
-  doc["username"]="admin";
-  doc["password"]="admin123";
+  doc["user_id"] = user_id;
   doc["location"] = location;
   doc["firmware_version"] = firmware_version;
   doc["hardware_version"] = "ESP32-WROOM-32";
@@ -552,7 +599,8 @@ bool register_device_with_server() {
         Serial.println("✅ Device registered successfully!");
         Serial.println("📋 Device ID: " + String(device_id));
         Serial.println("🔑 API Key: " + device_api_key.substring(0, 8) + "...");
-        Serial.println("💾 Credentials saved to persistent storage");
+        Serial.println("� User ID: " + user_id);
+        Serial.println("�💾 Credentials saved to persistent storage");
       } else {
         Serial.println("❌ Invalid response format - missing id or api_key");
       }
@@ -605,15 +653,17 @@ void load_device_credentials() {
   preferences.begin("iotflow", false);  // false = read/write mode
   
   // Try to load stored credentials
-  if (preferences.isKey("device_id") && preferences.isKey("api_key")) {
+  if (preferences.isKey("device_id") && preferences.isKey("api_key") && preferences.isKey("user_id")) {
     device_id = preferences.getInt("device_id", -1);
     device_api_key = preferences.getString("api_key", "");
+    user_id = preferences.getString("user_id", "");
     
-    if (device_id != -1 && device_api_key.length() > 0) {
+    if (device_id != -1 && device_api_key.length() > 0 && user_id.length() > 0) {
       device_registered = true;
       Serial.println("💾 Loaded stored device credentials:");
       Serial.println("📋 Device ID: " + String(device_id));
       Serial.println("🔑 API Key: " + device_api_key.substring(0, 8) + "...");
+      Serial.println("👤 User ID: " + user_id.substring(0, 8) + "...");
     } else {
       Serial.println("⚠️ Invalid stored credentials, will register new device");
       device_registered = false;
@@ -632,8 +682,12 @@ void save_device_credentials() {
   
   preferences.putInt("device_id", device_id);
   preferences.putString("api_key", device_api_key);
+  preferences.putString("user_id", user_id);
   
   preferences.end();
   
   Serial.println("💾 Device credentials saved to persistent storage");
+  Serial.println("📋 Saved Device ID: " + String(device_id));
+  Serial.println("🔑 Saved API Key: " + device_api_key.substring(0, 8) + "...");
+  Serial.println("👤 Saved User ID: " + user_id.substring(0, 8) + "...");
 }
