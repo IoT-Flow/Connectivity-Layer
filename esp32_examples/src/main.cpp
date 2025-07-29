@@ -31,7 +31,7 @@ const int mqtt_port = 1883;
 const int http_port = 5000;  // Flask server port
 
 // Device configuration
-String device_name = "esp32_1000";  // Unique device name
+String device_name = "esp32_5000";  // Unique device name
 String device_type = "esp32";
 String firmware_version = "1.0.0";
 String location = "lab";
