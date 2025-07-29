@@ -218,7 +218,8 @@ class MQTTAuthService:
                     data=telemetry_data,
                     device_type=device.device_type,
                     metadata=metadata,
-                    timestamp=timestamp
+                    timestamp=timestamp,
+                    user_id=device.user_id
                 )
                 
                 if success:                # Update device last seen and also update Redis cache
