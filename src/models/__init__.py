@@ -273,3 +273,7 @@ class ChartMeasurement(db.Model):
         db.Index('idx_chart_measurements', 'chart_id'),
         db.Index('idx_measurement_name', 'measurement_name'),
     )
+
+# Create the DeviceControl model after all other models are defined
+from src.models.device_control import create_device_control_model
+DeviceControl = create_device_control_model(db)

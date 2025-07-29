@@ -9,12 +9,14 @@ from src.routes.devices import device_bp
 from src.routes.admin import admin_bp
 from src.routes.mqtt import mqtt_bp
 from src.routes.telemetry import telemetry_bp
+from src.routes.control import control_bp
 from src.utils.logging import setup_logging
 from src.middleware.monitoring import HealthMonitor
 from src.middleware.security import comprehensive_error_handler, security_headers_middleware
 from src.mqtt.client import create_mqtt_service
 from src.services.mqtt_auth import MQTTAuthService
 from src.services.device_status_cache import DeviceStatusCache
+from src.mqtt.mqtt_client import publish_device_command, connect_mqtt
 
 def create_app(config_name=None):
     """Application factory pattern"""
@@ -60,6 +62,7 @@ def create_app(config_name=None):
     app.register_blueprint(admin_bp)
     app.register_blueprint(mqtt_bp)
     app.register_blueprint(telemetry_bp)
+    app.register_blueprint(control_bp)
     
     # Initialize MQTT service with authentication
     try:
@@ -171,6 +174,9 @@ def create_app(config_name=None):
             app.logger.info("Database tables created successfully")
         except Exception as e:
             app.logger.error(f"Error creating database tables: {str(e)}")
+    
+    # Call connect_mqtt() at app startup (before handling requests)
+    connect_mqtt()
     
     return app
 

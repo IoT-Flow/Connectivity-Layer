@@ -13,7 +13,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from app import create_app
-from src.models import db, User, Device, DeviceAuth, DeviceConfiguration, Chart, ChartDevice, ChartMeasurement
+from src.models import db, User, Device, DeviceAuth, DeviceConfiguration, Chart, ChartDevice, ChartMeasurement, DeviceControl
 from werkzeug.security import generate_password_hash
 from sqlalchemy import text, inspect
 
@@ -24,7 +24,7 @@ def init_database():
         try:
             inspector = inspect(db.engine)
             existing_tables = inspector.get_table_names()
-            all_models = [User, Device, DeviceAuth, DeviceConfiguration, Chart, ChartDevice, ChartMeasurement]
+            all_models = [User, Device, DeviceAuth, DeviceConfiguration, Chart, ChartDevice, ChartMeasurement, DeviceControl]
             missing_tables = []
             for model in all_models:
                 if model.__tablename__ not in existing_tables:
