@@ -80,7 +80,7 @@ class IoTFlowTester:
                 "location": "Test Lab",
                 "firmware_version": "1.0.0",
                 "hardware_version": "v1.0",
-                "user_id" : "170216b4fa0e4c1cb143a77bd1acb516"
+                "user_id" : "d48fb697e90d4617845c84c6b909dafd"
             }
             
             response = self.session.post(

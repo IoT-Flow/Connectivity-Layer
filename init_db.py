@@ -36,8 +36,7 @@ def init_database():
                 print(f"Found missing tables: {[t.name for t in missing_tables]}. Creating only missing tables...")
                 db.create_all(tables=missing_tables)
             else:
-                print("All tables already exist. No changes made.")
-                return True
+                print("All tables already exist. Proceeding with data initialization...")
 
             # Create admin user only if not exists
             admin_user = User.query.filter_by(username="admin").first()
@@ -68,43 +67,43 @@ def init_database():
             print(f"  - Admin user: {admin_user.username}")
 
             # Create sample devices for testing only if not exist
-            sample_devices = [
-                {
-                    'name': 'Temperature Sensor 001',
-                    'description': 'Living room temperature and humidity sensor',
-                    'device_type': 'sensor',
-                    'location': 'Living Room',
-                    'firmware_version': '1.2.3',
-                    'hardware_version': 'v2.1',
-                    'user_id': admin_user.id
-                },
-                {
-                    'name': 'Smart Door Lock',
-                    'description': 'WiFi enabled smart door lock',
-                    'device_type': 'actuator',
-                    'location': 'Front Door',
-                    'firmware_version': '2.0.1',
-                    'hardware_version': 'v1.0',
-                    'user_id': admin_user.id
-                },
-                {
-                    'name': 'Security Camera 01',
-                    'description': 'Outdoor security camera with motion detection',
-                    'device_type': 'camera',
-                    'location': 'Front Yard',
-                    'firmware_version': '3.1.0',
-                    'hardware_version': 'v3.2',
-                    'user_id': admin_user.id
-                }
-            ]
-            for device_data in sample_devices:
-                if not Device.query.filter_by(name=device_data['name']).first():
-                    device = Device(**device_data)
-                    db.session.add(device)
-                    print(f"  - Created device: {device.name}")
+            # sample_devices = [
+            #     {
+            #         'name': 'Temperature Sensor 001',
+            #         'description': 'Living room temperature and humidity sensor',
+            #         'device_type': 'sensor',
+            #         'location': 'Living Room',
+            #         'firmware_version': '1.2.3',
+            #         'hardware_version': 'v2.1',
+            #         'user_id': admin_user.id
+            #     },
+            #     {
+            #         'name': 'Smart Door Lock',
+            #         'description': 'WiFi enabled smart door lock',
+            #         'device_type': 'actuator',
+            #         'location': 'Front Door',
+            #         'firmware_version': '2.0.1',
+            #         'hardware_version': 'v1.0',
+            #         'user_id': admin_user.id
+            #     },
+            #     {
+            #         'name': 'Security Camera 01',
+            #         'description': 'Outdoor security camera with motion detection',
+            #         'device_type': 'camera',
+            #         'location': 'Front Yard',
+            #         'firmware_version': '3.1.0',
+            #         'hardware_version': 'v3.2',
+            #         'user_id': admin_user.id
+            #     }
+            # ]
+            # for device_data in sample_devices:
+            #     if not Device.query.filter_by(name=device_data['name']).first():
+            #         device = Device(**device_data)
+            #         db.session.add(device)
+            #         print(f"  - Created device: {device.name}")
             db.session.commit()
-            print(f"\nDatabase initialization completed successfully!")
-            print(f"Created/checked {len(sample_devices)} sample devices.")
+            # print(f"\nDatabase initialization completed successfully!")
+            # print(f"Created/checked {len(sample_devices)} sample devices.")
             
             # Display admin user credentials for testing
             print("\n" + "="*60)

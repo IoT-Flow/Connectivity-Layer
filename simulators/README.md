@@ -1,346 +1,288 @@
-# IoT Device Simulators - Production Ready
+# MQTT Device Simulator for IoTFlow
 
-## 🚀 **Advanced MQTT Device Simulator**
+This directory contains a comprehensive MQTT device simulator that can simulate multiple IoT devices sending telemetry data to your IoTFlow system.
 
-A comprehensive, production-ready MQTT device simulator with advanced features for the IoTFlow platform.
+## Features
 
-## **Quick Start**
+- 🔄 **Multiple Device Types**: Environmental, Industrial, Agricultural, Energy, Automotive, and Smart Home sensors
+- 📡 **MQTT Protocol**: Uses MQTT for efficient IoT communication
+- 🎛️ **Configurable Sensors**: Each device type has realistic sensor configurations
+- ⏱️ **Flexible Intervals**: Customizable telemetry and heartbeat intervals
+- 🔐 **API Integration**: Automatic device registration via IoTFlow API
+- 📊 **Realistic Data**: Time-based patterns, noise, and realistic sensor ranges
+- 🔄 **Status Reporting**: Online/offline status and heartbeat messages
+- 🛠️ **Easy Configuration**: Modify device types and sensors in `simulator_config.py`
 
-### **Basic Usage**
+## Files
 
-```bash
-# Run with default settings
-poetry run python new_mqtt_device_simulator.py --name MyTestDevice
+- `mqtt_device_simulator.py` - Main simulator script
+- `simulator_config.py` - Device types and sensor configurations  
+- `requirements.txt` - Python dependencies
+- `setup.sh` - Setup script for easy installation
+- `README.md` - This documentation
 
-# Run for specific duration
-poetry run python new_mqtt_device_simulator.py --name MyDevice --duration 600
-```
+## Quick Start
 
-### **Simulation Profiles**
-
-Choose from 4 pre-configured profiles:
-
-```bash
-# Default profile (standard sensor)
-poetry run python new_mqtt_device_simulator.py --name StandardSensor --profile default
-
-# High-frequency motion sensor
-poetry run python new_mqtt_device_simulator.py \
-    --name MotionSensor001 \
-    --type motion_sensor \
-    --profile high_frequency \
-    --duration 1800
-
-# Energy-efficient environmental sensor
-poetry run python new_mqtt_device_simulator.py \
-    --name EnvSensor001 \
-    --type environmental_sensor \
-    --profile energy_efficient \
-    --duration 3600
-
-# Industrial sensor with vibration monitoring
-poetry run python new_mqtt_device_simulator.py \
-    --name IndustrialSensor001 \
-    --type industrial_sensor \
-    --profile industrial \
-    --duration 1800
-```
-
-## **Advanced Features**
-
-### **1. Comprehensive Device Types**
-
-- **smart_sensor** - Standard IoT sensor (default)
-- **industrial_sensor** - Industrial monitoring device
-- **environmental_sensor** - Environmental monitoring
-- **motion_sensor** - Motion and acceleration detection
-- **energy_meter** - Power consumption monitoring
-
-- **Data**: Temperature, humidity, location status
-- **Pattern**: Indoor vs outdoor temperature patterns
-- **Locations**: Indoor, Outdoor, Greenhouse, Server Room
-
-### **3. Smart Door Lock**
-
-- **Data**: Lock status, access events, attempt counter
-- **Pattern**: More activity during day hours
-- **Events**: Lock/unlock, status checks, access attempts
-
-### **4. Security Camera**
-
-- **Data**: Motion detection, recording status, storage usage
-- **Pattern**: Peak motion during rush hours, less at night
-- **Features**: Night vision mode, storage tracking
-
-### **5. Air Quality Monitor**
-
-- **Data**: PM2.5, CO2, temperature, humidity, AQI
-- **Pattern**: PM2.5 peaks during rush hours
-- **Features**: Air quality index calculation
-
-### **6. Smart Thermostat**
-
-- **Data**: Current/target temperature, mode, energy usage
-- **Pattern**: Scheduled temperature control
-- **Features**: Auto heating/cooling, energy monitoring
-
-## **Simulation Features**
-
-### **✅ Device Registration Workflow**
-
-- Automatic device registration with unique API keys
-- Device ID and API key management
-- Registration failure handling
-
-### **✅ Authentication & Security**
-
-- API key-based authentication
-- Secure headers (X-API-Key)
-- Rate limiting compliance
-
-### **✅ Periodic Heartbeat**
-
-- Configurable heartbeat intervals (default: 60s)
-- Online/offline status tracking
-- Automatic reconnection on failures
-
-### **✅ Realistic Data Patterns**
-
-- Daily temperature cycles based on time of day
-- Activity patterns (more motion during peak hours)
-- Seasonal and environmental variations
-
-### **✅ Network Failure Simulation**
-
-- Random connection drops (5% failure rate)
-- Automatic retry logic
-- Graceful error handling
-
-### **✅ Battery Level Simulation**
-
-- Gradual battery drain over time
-- Battery level reporting in telemetry
-- Power management simulation
-
-### **✅ Configurable Intervals**
-
-- Telemetry: 20s - 300s (customizable per device)
-- Heartbeat: 60s - 300s
-- Device-specific optimized intervals
-
-## **Fleet Presets**
-
-### **🏠 Home Setup (9 devices)**
-
-- 3x Temperature sensors (indoor/outdoor)
-- 2x Smart door locks (front/back)
-- 2x Security cameras (yard/driveway)
-- 1x Air quality monitor
-- 1x Smart thermostat
-
-### **🏢 Office Setup (16 devices)**
-
-- 5x Temperature sensors (multiple rooms)
-- 3x Smart door locks (entrances)
-- 4x Security cameras (comprehensive coverage)
-- 2x Air quality monitors
-- 2x Smart thermostats (zone control)
-
-### **🏭 Factory Setup (30 devices)**
-
-- 10x Temperature sensors (multiple zones)
-- 5x Smart door locks (security doors)
-- 8x Security cameras (full coverage)
-- 4x Air quality monitors (environmental)
-- 3x Smart thermostats (large zone control)
-
-## **Command Examples**
-
-### **Quick Device Tests**
-
-## **Testing Examples**
-
-### **Quick Tests**
+### 1. Install Dependencies
 
 ```bash
-# 2-minute default sensor test
-poetry run python new_mqtt_device_simulator.py --name QuickTest --duration 120
+# Option A: Use the setup script
+chmod +x setup.sh
+./setup.sh
 
-# High-frequency motion sensor test
-poetry run python new_mqtt_device_simulator.py \
-    --name MotionTest \
-    --type motion_sensor \
-    --profile high_frequency \
-    --duration 180
-
-# Energy-efficient long-running test
-poetry run python new_mqtt_device_simulator.py \
-    --name LongRunTest \
-    --profile energy_efficient \
-    --duration 3600
+# Option B: Install manually
+pip3 install -r requirements.txt
 ```
 
-### **Load Testing**
+### 2. Start IoTFlow Services
+
+Make sure your IoTFlow server and MQTT broker are running:
 
 ```bash
-# Multiple devices (run in separate terminals)
-poetry run python new_mqtt_device_simulator.py --name Device001 --duration 600 &
-poetry run python new_mqtt_device_simulator.py --name Device002 --duration 600 &
-poetry run python new_mqtt_device_simulator.py --name Device003 --duration 600 &
+# Start Redis (if not running)
+redis-server
 
-# High-frequency industrial sensors
-poetry run python new_mqtt_device_simulator.py \
-    --name IndustrialSensor001 \
-    --type industrial_sensor \
-    --profile industrial \
-    --duration 1800
+# Start MQTT broker (Mosquitto)
+mosquitto -c mqtt/config/mosquitto.conf
+
+# Start IoTFlow API server
+poetry run python app.py
 ```
 
-## **Monitoring Your Simulations**
-
-### **1. Check Device Registration**
+### 3. Run the Simulator
 
 ```bash
-curl -s "http://localhost:5000/api/v1/admin/devices" | python3 -m json.tool
+# Basic usage (4 devices)
+python3 mqtt_device_simulator.py
+
+# Custom number of devices
+python3 mqtt_device_simulator.py --devices 8
+
+# Custom MQTT broker and API URL
+python3 mqtt_device_simulator.py --mqtt-host localhost --api-url http://localhost:5000/api/v1
+
+# Verbose output
+python3 mqtt_device_simulator.py --verbose
+
+# Custom user ID for device registration
+python3 mqtt_device_simulator.py --user-id "your_user_id_here"
 ```
 
-### **2. View System Health**
+## Command Line Options
+
+```
+Options:
+  --api-url URL         IoTFlow API base URL (default: http://localhost:5000/api/v1)
+  --mqtt-host HOST      MQTT broker hostname (default: localhost)
+  --mqtt-port PORT      MQTT broker port (default: 1883)
+  --devices N           Number of devices to simulate (default: 4)
+  --user-id ID          User ID for device registration (default: default_user_123)
+  --verbose, -v         Enable verbose logging
+  --help, -h            Show help message
+```
+
+## Device Types
+
+The simulator supports the following device types:
+
+### Environmental Sensors
+- **Sensors**: Temperature, Humidity, Pressure, Light, Air Quality
+- **Use Case**: Office buildings, weather stations
+- **Telemetry Interval**: 30 seconds
+
+### Industrial Monitors  
+- **Sensors**: Temperature, Vibration, Pressure, Current, Voltage, RPM
+- **Use Case**: Manufacturing equipment monitoring
+- **Telemetry Interval**: 15 seconds
+
+### Agricultural Devices
+- **Sensors**: Soil temperature/moisture/pH, Light intensity, Ambient conditions
+- **Use Case**: Smart farming, greenhouse monitoring
+- **Telemetry Interval**: 60 seconds
+
+### Energy Meters
+- **Sensors**: Voltage, Current, Power, Energy, Frequency, Power Factor
+- **Use Case**: Smart grid, home energy monitoring
+- **Telemetry Interval**: 20 seconds
+
+### Automotive Sensors
+- **Sensors**: Engine temperature, RPM, Speed, Fuel level, Battery, Oil pressure
+- **Use Case**: Fleet management, vehicle diagnostics
+- **Telemetry Interval**: 10 seconds
+
+### Smart Home Devices
+- **Sensors**: Indoor climate, Motion, Light level, Sound, Door status
+- **Use Case**: Home automation, security systems
+- **Telemetry Interval**: 45 seconds
+
+## MQTT Topics
+
+The simulator publishes to these MQTT topics:
+
+```
+# Telemetry data
+iotflow/devices/{device_id}/telemetry
+iotflow/devices/{device_id}/telemetry/sensors
+
+# Device status
+iotflow/devices/{device_id}/status/online
+iotflow/devices/{device_id}/status/offline
+iotflow/devices/{device_id}/status/heartbeat
+```
+
+## Sample Data Format
+
+### Telemetry Message
+```json
+{
+  "device_id": 123,
+  "device_name": "Office Environment Monitor",
+  "device_type": "environmental",
+  "location": "Office Building A, Floor 3",
+  "timestamp": "2025-01-15T10:30:00.000Z",
+  "data": {
+    "temperature": {
+      "value": 22.5,
+      "unit": "°C",
+      "timestamp": "2025-01-15T10:30:00.000Z"
+    },
+    "humidity": {
+      "value": 45.2,
+      "unit": "%",
+      "timestamp": "2025-01-15T10:30:00.000Z"
+    },
+    "pressure": {
+      "value": 1013.25,
+      "unit": "hPa", 
+      "timestamp": "2025-01-15T10:30:00.000Z"
+    }
+  },
+  "metadata": {
+    "firmware_version": "1.0.0-sim",
+    "signal_strength": -65,
+    "battery_level": 87
+  },
+  "api_key": "device_api_key_here"
+}
+```
+
+### Status Message
+```json
+{
+  "device_id": 123,
+  "device_name": "Office Environment Monitor",
+  "status": "online",
+  "timestamp": "2025-01-15T10:30:00.000Z",
+  "api_key": "device_api_key_here"
+}
+```
+
+## Customization
+
+### Adding New Device Types
+
+Edit `simulator_config.py` to add new device types:
+
+```python
+DEVICE_TYPES['custom_type'] = DeviceTypeConfig(
+    name='custom_type',
+    description='My custom device type',
+    sensors={
+        'custom_sensor': SensorConfig(0.0, 100.0, 'units'),
+        'another_sensor': SensorConfig(-50.0, 50.0, 'other_units')
+    },
+    default_telemetry_interval=30,
+    default_heartbeat_interval=60
+)
+```
+
+### Modifying Sensor Ranges
+
+Update sensor configurations in `simulator_config.py`:
+
+```python
+'temperature': SensorConfig(
+    min_value=-10.0,    # Minimum value
+    max_value=50.0,     # Maximum value
+    unit='°C',          # Unit of measurement
+    precision=2,        # Decimal places
+    noise_factor=0.05   # 5% random noise
+)
+```
+
+## Troubleshooting
+
+### MQTT Connection Issues
+- Ensure MQTT broker (Mosquitto) is running on the specified host/port
+- Check firewall settings
+- Verify MQTT broker configuration allows anonymous connections
+
+### API Registration Failures
+- Ensure IoTFlow API server is running
+- Check the API URL is correct
+- Verify the user_id exists in the database (run `init_db.py` if needed)
+
+### Missing Dependencies
+```bash
+pip3 install paho-mqtt requests
+```
+
+### Permission Issues
+```bash
+chmod +x mqtt_device_simulator.py
+chmod +x setup.sh
+```
+
+## Monitoring
+
+While the simulator is running, you can monitor:
+
+1. **Simulator Logs**: Watch the console output for device status
+2. **MQTT Messages**: Use MQTT client to subscribe to `iotflow/#`
+3. **IoTFlow Logs**: Check IoTFlow server logs for received messages
+4. **Redis Cache**: Monitor device status in Redis
+5. **Database**: Check telemetry data in IoTDB
+
+### MQTT Monitoring Commands
 
 ```bash
-curl -s "http://localhost:5000/health?detailed=true" | python3 -m json.tool
+# Subscribe to all topics
+mosquitto_sub -h localhost -t "iotflow/#" -v
+
+# Subscribe to specific device
+mosquitto_sub -h localhost -t "iotflow/devices/+/telemetry" -v
+
+# Subscribe to status messages
+mosquitto_sub -h localhost -t "iotflow/devices/+/status/+" -v
 ```
 
-### **3. Monitor MQTT Activity**
+## Advanced Usage
+
+### Running Multiple Simulators
+You can run multiple simulator instances with different configurations:
 
 ```bash
-# Monitor specific device
-../scripts/monitor_mqtt.sh -d MyTestDevice
+# Terminal 1: Environmental devices
+python3 mqtt_device_simulator.py --devices 3 --user-id "user1"
 
-# Monitor all devices
-../scripts/monitor_mqtt.sh -a
-
-# Send commands
-poetry run python ../scripts/send_device_command.py -d MyTestDevice -c get_status
+# Terminal 2: Industrial devices  
+python3 mqtt_device_simulator.py --devices 2 --user-id "user2"
 ```
 
-### **2. Simulation Profiles**
+### Custom Device Configuration
+Create custom device configurations by modifying the `SAMPLE_DEVICES` list in `simulator_config.py`.
 
-- **Default**: temperature, humidity, pressure, battery (30s/60s intervals)
-- **High Frequency**: includes accelerometer/gyroscope (5s/30s intervals)
-- **Energy Efficient**: minimal telemetry for battery preservation (5min/10min intervals)
-- **Industrial**: vibration and power monitoring (10s/30s intervals)
+### Integration Testing
+The simulator is perfect for:
+- Testing MQTT message handling
+- Validating telemetry data processing
+- Load testing the IoTFlow system
+- Demonstrating real-time data flows
 
-### **3. Realistic Telemetry Generation**
+## Support
 
-- **Temperature**: Daily cycles with realistic variations
-- **Humidity**: Correlated with temperature
-- **Battery**: Gradual drain based on profile
-- **Motion**: Accelerometer and gyroscope data
-- **Industrial**: Vibration and power consumption
-
-### **4. Command & Control**
-
-Remote command support via MQTT:
-
-```bash
-# Send commands using the utility script
-poetry run python ../scripts/send_device_command.py -d MyDevice -c restart
-poetry run python ../scripts/send_device_command.py -d MyDevice -c get_status
-poetry run python ../scripts/send_device_command.py -d MyDevice -c update_interval --interval 10
-```
-
-## **Monitoring & Testing**
-
-### **Monitor MQTT Topics**
-
-```bash
-# Monitor all topics for a device
-../scripts/monitor_mqtt.sh -d MyTestDevice
-
-# Monitor all device activity
-../scripts/monitor_mqtt.sh -a
-
-# Using mosquitto_sub directly
-mosquitto_sub -h localhost -p 1883 -t "devices/MyTestDevice/+" -v
-```
-
-### **MQTT Topics Structure**
-
-- `devices/{name}/telemetry` - Sensor data
-- `devices/{name}/heartbeat` - Device health status
-- `devices/{name}/status` - Status updates and command responses
-- `devices/{name}/commands` - Remote commands (subscribe)
-- `devices/{name}/config` - Configuration updates (subscribe)
-- `devices/{name}/errors` - Error reports
-
-## **Integration with IoTFlow**
-
-### **1. HTTP Device Registration**
-- Automatically registers with `/api/v1/devices/register`
-- Receives device ID and API key for authentication
-
-### **2. MQTT Authentication**
-- Uses device ID and API key for secure MQTT connection
-- Follows IoTFlow's authentication protocol
-
-### **3. Data Flow**
-- Telemetry → MQTT → IoTFlow → IoTDB
-- Heartbeat and status monitoring
-- Command handling and responses
-
-## **Example Output**
-
-```
-2025-07-04 10:30:15,123 - INFO - [NewMQTT-MyTestDevice] - 🔧 Loaded simulation profile: default
-2025-07-04 10:30:15,124 - INFO - [NewMQTT-MyTestDevice] - 🔗 Registering device: MyTestDevice
-2025-07-04 10:30:15,456 - INFO - [NewMQTT-MyTestDevice] - ✅ Device registered successfully!
-2025-07-04 10:30:15,457 - INFO - [NewMQTT-MyTestDevice] - 🔌 Connected to MQTT broker at localhost:1883
-2025-07-04 10:30:15,678 - INFO - [NewMQTT-MyTestDevice] - 💓 Heartbeat sent - Uptime: 1s
-2025-07-04 10:30:45,789 - INFO - [NewMQTT-MyTestDevice] - 📊 Telemetry sent - Temp: 24.5°C, Battery: 99.9%
-```
-
-## **Requirements**
-
-- IoTFlow service running (`poetry run python app.py`)
-- MQTT broker active (included in docker-compose)
-- Python packages: `paho-mqtt`, `requests` (included in pyproject.toml)
-
-## **Troubleshooting**
-
-### **"Cannot connect to IoTFlow service"**
-
-1. Start Docker services: `./docker-manage.sh start`
-2. Start Flask app: `poetry run python app.py`
-3. Check health: `curl http://localhost:5000/health`
-
-### **"Device name already exists"**
-
-- Use a different device name
-- Each device name must be unique in the system
-
-### **"MQTT connection failed"**
-
-- Ensure device registration was successful
-- Check MQTT broker is running (docker-compose)
-- Verify network connectivity
-
-### **"Command not working"**
-
-- Ensure device is running and connected
-- Check MQTT topic names are correct
-- Monitor with `mosquitto_sub` to verify message flow
-
-## **File Structure**
-
-```
-simulators/
-├── new_mqtt_device_simulator.py    # Main advanced simulator
-├── NEW_MQTT_SIMULATOR.md          # Detailed documentation
-└── README.md                      # This file
-```
-
----
-
-**🎉 Production-Ready MQTT Device Simulator!**
-
-For detailed documentation, see [`NEW_MQTT_SIMULATOR.md`](NEW_MQTT_SIMULATOR.md)
+For issues or questions:
+1. Check the troubleshooting section above
+2. Review IoTFlow server logs
+3. Verify MQTT broker connectivity
+4. Ensure all dependencies are installed

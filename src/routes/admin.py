@@ -336,3 +336,211 @@ def get_cache_stats():
             'error': 'Cache operation failed',
             'message': 'An error occurred while getting cache statistics'
         }), 500
+
+# Redis-to-Database Sync Management Endpoints
+
+@admin_bp.route('/redis-db-sync/status', methods=['GET'])
+@require_admin_token
+def get_redis_db_sync_status():
+    """Get Redis-to-Database synchronization status"""
+    try:
+        if not hasattr(current_app, 'device_status_cache') or not current_app.device_status_cache:
+            return jsonify({
+                'status': 'not_available',
+                'message': 'Device status cache not available'
+            }), 200
+        
+        cache = current_app.device_status_cache
+        
+        return jsonify({
+            'status': 'success',
+            'redis_db_sync': {
+                'enabled': cache.is_database_sync_enabled(),
+                'redis_available': cache.available,
+                'callback_count': len(cache.status_change_callbacks)
+            }
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting Redis-DB sync status: {str(e)}")
+        return jsonify({
+            'error': 'Failed to get sync status',
+            'message': str(e)
+        }), 500
+
+@admin_bp.route('/redis-db-sync/enable', methods=['POST'])
+@require_admin_token
+def enable_redis_db_sync():
+    """Enable Redis-to-Database synchronization"""
+    try:
+        if not hasattr(current_app, 'device_status_cache') or not current_app.device_status_cache:
+            return jsonify({
+                'error': 'Service not available',
+                'message': 'Device status cache not available'
+            }), 400
+        
+        cache = current_app.device_status_cache
+        cache.enable_database_sync()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Redis-to-Database synchronization enabled'
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error enabling Redis-DB sync: {str(e)}")
+        return jsonify({
+            'error': 'Failed to enable sync',
+            'message': str(e)
+        }), 500
+
+@admin_bp.route('/redis-db-sync/disable', methods=['POST'])
+@require_admin_token
+def disable_redis_db_sync():
+    """Disable Redis-to-Database synchronization"""
+    try:
+        if not hasattr(current_app, 'device_status_cache') or not current_app.device_status_cache:
+            return jsonify({
+                'error': 'Service not available',
+                'message': 'Device status cache not available'
+            }), 400
+        
+        cache = current_app.device_status_cache
+        cache.disable_database_sync()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Redis-to-Database synchronization disabled'
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error disabling Redis-DB sync: {str(e)}")
+        return jsonify({
+            'error': 'Failed to disable sync',
+            'message': str(e)
+        }), 500
+
+@admin_bp.route('/redis-db-sync/force-sync/<int:device_id>', methods=['POST'])
+@require_admin_token
+def force_sync_device_to_db(device_id):
+    """Force synchronization of a specific device status to database"""
+    try:
+        if not hasattr(current_app, 'device_status_cache') or not current_app.device_status_cache:
+            return jsonify({
+                'error': 'Service not available',
+                'message': 'Device status cache not available'
+            }), 400
+        
+        cache = current_app.device_status_cache
+        
+        # Check if device exists
+        device = Device.query.get(device_id)
+        if not device:
+            return jsonify({
+                'error': 'Device not found',
+                'message': f'Device with ID {device_id} does not exist'
+            }), 404
+        
+        # Force sync
+        success = cache.force_sync_device_to_database(device_id)
+        
+        if success:
+            # Get updated status
+            redis_status = cache.get_device_status(device_id)
+            db.session.refresh(device)
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'Device {device_id} status synchronized successfully',
+                'sync_result': {
+                    'device_id': device_id,
+                    'redis_status': redis_status,
+                    'database_status': device.status
+                }
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Sync failed',
+                'message': f'Failed to synchronize device {device_id} status'
+            }), 500
+        
+    except Exception as e:
+        current_app.logger.error(f"Error forcing device sync: {str(e)}")
+        return jsonify({
+            'error': 'Force sync operation failed',
+            'message': str(e)
+        }), 500
+
+@admin_bp.route('/redis-db-sync/bulk-sync', methods=['POST'])
+@require_admin_token
+def bulk_sync_devices_to_db():
+    """Force synchronization of all devices with Redis status to database"""
+    try:
+        if not hasattr(current_app, 'device_status_cache') or not current_app.device_status_cache:
+            return jsonify({
+                'error': 'Service not available',
+                'message': 'Device status cache not available'
+            }), 400
+        
+        cache = current_app.device_status_cache
+        
+        # Get all devices
+        devices = Device.query.all()
+        
+        sync_results = {
+            'total_devices': len(devices),
+            'synced_devices': 0,
+            'failed_devices': 0,
+            'skipped_devices': 0,  # Devices without Redis status
+            'details': []
+        }
+        
+        for device in devices:
+            redis_status = cache.get_device_status(device.id)
+            
+            if not redis_status:
+                sync_results['skipped_devices'] += 1
+                continue
+            
+            try:
+                success = cache.force_sync_device_to_database(device.id)
+                
+                if success:
+                    sync_results['synced_devices'] += 1
+                    db.session.refresh(device)
+                    sync_results['details'].append({
+                        'device_id': device.id,
+                        'device_name': device.name,
+                        'redis_status': redis_status,
+                        'database_status': device.status,
+                        'result': 'success'
+                    })
+                else:
+                    sync_results['failed_devices'] += 1
+                    sync_results['details'].append({
+                        'device_id': device.id,
+                        'device_name': device.name,
+                        'result': 'failed'
+                    })
+                    
+            except Exception as e:
+                sync_results['failed_devices'] += 1
+                sync_results['details'].append({
+                    'device_id': device.id,
+                    'device_name': device.name,
+                    'result': 'error',
+                    'error': str(e)
+                })
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Bulk synchronization completed',
+            'sync_results': sync_results
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in bulk device sync: {str(e)}")
+        return jsonify({
+            'error': 'Bulk sync operation failed',
+            'message': str(e)
+        }), 500

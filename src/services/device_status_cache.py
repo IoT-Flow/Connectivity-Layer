@@ -1,6 +1,7 @@
 """
 Device Status Cache Service
 Provides caching for device online/offline status and last seen timestamps using Redis
+Automatically syncs status changes to SQLite database
 """
 
 import json
@@ -21,10 +22,13 @@ class DeviceStatusCache:
     def __init__(self, redis_client=None):
         self.redis = redis_client
         self.available = redis_client is not None
+        self.db_sync_enabled = True  # Flag to enable/disable automatic DB sync
+        self.status_change_callbacks = []  # List of callback functions
     
     def set_device_status(self, device_id: int, status: str) -> bool:
         """
         Set the online/offline status of a device
+        Automatically syncs to SQLite database if enabled
         
         Args:
             device_id: The device ID
@@ -36,11 +40,22 @@ class DeviceStatusCache:
         if not self.available:
             logger.debug("Redis not available, skipping device status cache")
             return False
+        
+        # Get old status for comparison (to detect actual changes)
+        old_status = self.get_device_status(device_id)
             
         try:
             key = f"{DEVICE_STATUS_PREFIX}{device_id}"
             self.redis.set(key, status, ex=DEVICE_CACHE_TTL)
             logger.debug(f"Device {device_id} status cached: {status}")
+            
+            # Sync to database if enabled and status actually changed
+            if self.db_sync_enabled and old_status != status:
+                self._sync_status_to_database(device_id, status, old_status)
+                
+                # Trigger any registered callbacks
+                self._trigger_status_change_callbacks(device_id, old_status, status)
+            
             return True
         except Exception as e:
             logger.warning(f"Failed to cache device {device_id} status: {str(e)}")
@@ -125,6 +140,7 @@ class DeviceStatusCache:
     def set_device_offline(self, device_id: int) -> bool:
         """
         Set a device as offline in the cache
+        This will also trigger database sync if enabled
         
         Args:
             device_id: The device ID
@@ -304,4 +320,142 @@ class DeviceStatusCache:
                 
         except Exception as e:
             logger.warning(f"Failed to clear all device caches: {str(e)}")
+            return False
+    
+    def _sync_status_to_database(self, device_id: int, redis_status: str, old_status: str = None):
+        """
+        Sync Redis status change to SQLite database
+        
+        Args:
+            device_id: The device ID
+            redis_status: New status from Redis ('online' or 'offline')
+            old_status: Previous status (for logging)
+        """
+        try:
+            # Check if we're in a Flask request context
+            from flask import has_request_context, current_app
+            
+            if has_request_context():
+                # We're in a Flask request context, use the normal approach
+                from src.models import Device, db
+                
+                # Map Redis status to database status
+                db_status = 'active' if redis_status == 'online' else 'inactive'
+                
+                # Get device from database
+                device = Device.query.get(device_id)
+                if not device:
+                    logger.warning(f"Device {device_id} not found in database for status sync")
+                    return
+                
+                # Only update if status actually needs to change
+                if device.status != db_status:
+                    old_db_status = device.status
+                    device.status = db_status
+                    device.updated_at = datetime.now(timezone.utc)
+                    
+                    # Commit the change
+                    db.session.commit()
+                    
+                    logger.info(
+                        f"Synced device {device_id} status to database: "
+                        f"Redis({old_status}→{redis_status}) → DB({old_db_status}→{db_status})"
+                    )
+                else:
+                    logger.debug(f"Device {device_id} database status already matches: {db_status}")
+            else:
+                # We're outside Flask context (e.g., MQTT background thread)
+                # Use the direct database sync function
+                try:
+                    from src.utils.redis_util import _sync_to_database_standalone
+                    _sync_to_database_standalone(device_id, redis_status, old_status)
+                    logger.info(f"Background sync completed for device {device_id}: {redis_status}")
+                except ImportError:
+                    logger.error(f"Cannot sync device {device_id} - Redis utility not available")
+                except Exception as util_error:
+                    logger.error(f"Failed to sync device {device_id} via utility: {util_error}")
+                
+        except Exception as e:
+            logger.error(f"Failed to sync device {device_id} status to database: {e}")
+            try:
+                # Only try rollback if we have Flask context
+                from flask import has_request_context
+                if has_request_context():
+                    from src.models import db
+                    db.session.rollback()
+            except:
+                pass
+    
+    def register_status_change_callback(self, callback):
+        """
+        Register a function to be called when device status changes
+        
+        Args:
+            callback: Function with signature (device_id, old_status, new_status)
+        """
+        if callback not in self.status_change_callbacks:
+            self.status_change_callbacks.append(callback)
+            logger.debug(f"Registered status change callback: {callback.__name__}")
+    
+    def unregister_status_change_callback(self, callback):
+        """
+        Unregister a status change callback
+        
+        Args:
+            callback: The callback function to remove
+        """
+        if callback in self.status_change_callbacks:
+            self.status_change_callbacks.remove(callback)
+            logger.debug(f"Unregistered status change callback: {callback.__name__}")
+    
+    def _trigger_status_change_callbacks(self, device_id: int, old_status: str, new_status: str):
+        """
+        Trigger all registered status change callbacks
+        
+        Args:
+            device_id: The device ID
+            old_status: Previous status
+            new_status: New status
+        """
+        for callback in self.status_change_callbacks:
+            try:
+                callback(device_id, old_status, new_status)
+            except Exception as e:
+                logger.error(f"Status change callback {callback.__name__} failed: {e}")
+    
+    def enable_database_sync(self):
+        """Enable automatic database synchronization"""
+        self.db_sync_enabled = True
+        logger.info("Database synchronization enabled")
+    
+    def disable_database_sync(self):
+        """Disable automatic database synchronization"""
+        self.db_sync_enabled = False
+        logger.info("Database synchronization disabled")
+    
+    def is_database_sync_enabled(self) -> bool:
+        """Check if database synchronization is enabled"""
+        return self.db_sync_enabled
+    
+    def force_sync_device_to_database(self, device_id: int) -> bool:
+        """
+        Force synchronization of a specific device status to database
+        regardless of db_sync_enabled flag
+        
+        Args:
+            device_id: The device ID to sync
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        redis_status = self.get_device_status(device_id)
+        if redis_status:
+            try:
+                self._sync_status_to_database(device_id, redis_status)
+                return True
+            except Exception as e:
+                logger.error(f"Failed to force sync device {device_id}: {e}")
+                return False
+        else:
+            logger.warning(f"No Redis status found for device {device_id}")
             return False

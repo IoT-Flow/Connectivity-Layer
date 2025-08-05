@@ -627,7 +627,7 @@ def is_device_online(device):
     
     # Consider device online if last seen in the last 5 minutes
     time_since_last_seen = (now - last_seen).total_seconds()
-    is_online = time_since_last_seen < 300  # 5 minutes
+    is_online = time_since_last_seen < 5  # 5 minutes
     
     # Update Redis cache if needed
     sync_device_status_to_redis(device, is_online, time_since_last_seen)
@@ -637,30 +637,43 @@ def is_device_online(device):
 def sync_device_status_to_redis(device, is_online, time_since_last_seen=None):
     """
     Sync the device status to Redis cache if it doesn't match
+    Uses safe Redis utility that works both inside and outside Flask application context
     """
-    # Only proceed if Redis cache is available
-    if not hasattr(current_app, 'device_status_cache') or not current_app.device_status_cache:
-        return
-    
-    # Ensure Redis is available
-    if not current_app.device_status_cache.available:
-        return
-        
     try:
-        # Get current Redis status
-        redis_status = current_app.device_status_cache.get_device_status(device.id)
-        
-        # If status needs updating
-        if (is_online and redis_status != 'online') or (not is_online and redis_status != 'offline'):
-            new_status = 'online' if is_online else 'offline'
-            current_app.device_status_cache.set_device_status(device.id, new_status)
+        # First try to use the Flask app context if available
+        try:
+            # Check if we have Flask app context available
+            cache_available = (hasattr(current_app, 'device_status_cache') and 
+                             current_app.device_status_cache and 
+                             current_app.device_status_cache.available)
             
-            if time_since_last_seen is not None:
-                current_app.logger.info(
-                    f"Updated device {device.id} status in Redis: {new_status} " 
-                    f"(last seen {time_since_last_seen:.1f}s ago)"
-                )
-            else:
-                current_app.logger.info(f"Updated device {device.id} status in Redis: {new_status}")
+            if cache_available:
+                # Use the Flask app's Redis cache
+                redis_status = current_app.device_status_cache.get_device_status(device.id)
+                
+                if (is_online and redis_status != 'online') or (not is_online and redis_status != 'offline'):
+                    new_status = 'online' if is_online else 'offline'
+                    current_app.device_status_cache.set_device_status(device.id, new_status)
+                    
+                    if time_since_last_seen is not None:
+                        current_app.logger.info(
+                            f"Updated device {device.id} status in Redis: {new_status} " 
+                            f"(last seen {time_since_last_seen:.1f}s ago)"
+                        )
+                    else:
+                        current_app.logger.info(f"Updated device {device.id} status in Redis: {new_status}")
+                return
+                
+        except RuntimeError:
+            # We're outside Flask application context, use the safe Redis utility
+            pass
+        
+        # Fall back to safe Redis utility
+        from src.utils.redis_util import sync_device_status_safe
+        sync_device_status_safe(device.id, is_online, time_since_last_seen)
+        
     except Exception as e:
-        current_app.logger.error(f"Error syncing device {device.id} status to Redis: {e}")
+        # Use a basic logger if we can't get the app logger
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error syncing device {device.id} status to Redis: {e}")
