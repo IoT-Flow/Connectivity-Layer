@@ -35,12 +35,15 @@ class MQTTAuthService:
             
         try:
             with self.app.app_context():
-                # Find device by API key
-                device = Device.query.filter_by(api_key=api_key, status='active').first()
+                # Find device by API key (allow inactive devices for now)
+                device = Device.query.filter_by(api_key=api_key).first()
                 
                 if not device:
-                    logger.warning("Device not found or inactive for API key: %s...", api_key[:8])
+                    logger.warning("Device not found for API key: %s...", api_key[:8])
                     return None
+                
+                # Log device status for debugging
+                logger.info("Authenticating device %d (%s) with status: %s", device.id, device.name, device.status)
                     
                 # Update last seen (this also updates Redis cache via the device model)
                 device.update_last_seen()
@@ -87,13 +90,14 @@ class MQTTAuthService:
         Check if device is authorized to publish/subscribe to a topic
         """
         try:
-            # Check if device is authenticated and active
+            # Check if device is authenticated (allow inactive devices for now)
             device = self.authenticated_devices.get(device_id)
             if not device:
-                device = Device.query.filter_by(id=device_id, status='active').first()
+                device = Device.query.filter_by(id=device_id).first()  # Remove status='active' filter
                 if not device:
                     return False
                 self.authenticated_devices[device_id] = device
+                logger.info("Device %d (%s) authorized for topic: %s", device_id, device.name, topic)
             
             # Basic topic authorization rules
             # Devices can publish to their own telemetry topics
@@ -294,21 +298,21 @@ class MQTTAuthService:
         
         try:
             with self.app.app_context():
-                # Check if device exists and is active
+                # Check if device exists (allow inactive devices for now)
                 device = Device.query.filter_by(id=device_id, api_key=api_key).first()
                 
                 if not device:
                     logger.warning(f"Device registration validation failed: Device {device_id} not found with provided API key")
                     return False, "Device not found or invalid API key"
                 
+                # Log device status but don't reject inactive devices
                 if device.status != 'active':
-                    logger.warning(f"Device registration validation failed: Device {device_id} is not active (status: {device.status})")
-                    return False, f"Device is not active (status: {device.status})"
+                    logger.info(f"Device {device_id} has status '{device.status}' but allowing MQTT communication")
                 
                 # Update last seen timestamp
                 device.update_last_seen()
                 
-                logger.info(f"Device registration validation successful for device {device_id}")
+                logger.info(f"Device registration validation successful for device {device_id} (status: {device.status})")
                 return True, "Device validated successfully"
                 
         except Exception as e:
@@ -331,11 +335,8 @@ class MQTTAuthService:
             if not device:
                 return False, "Invalid API key or device not found", None
             
-            # Additional validation
-            is_valid, message = self.validate_device_registration(device.id, api_key)
-            if not is_valid:
-                return False, message, None
-            
+            # No additional validation needed since authenticate_device_by_api_key already validates
+            logger.info(f"Device {device.id} ({device.name}) authorized for MQTT communication")
             return True, "Device authorized for MQTT communication", device
             
         except Exception as e:

@@ -31,16 +31,16 @@ const int mqtt_port = 1883;
 const int http_port = 5000;  // Flask server port
 
 // Device configuration
-String device_name = "esp32_5000";  // Unique device name
+String device_name = "esp32_5001";  // Unique device name
 String device_type = "esp32";
 String firmware_version = "1.0.0";
 String location = "lab";
 
 // Runtime variables (will be set after registration)
-int device_id = -1;  // Will be assigned by server
-String device_api_key = "";  // Will be received from server
-String user_id = "170216b4fa0e4c1cb143a77bd1acb516";  // User ID for device association
-bool device_registered = false;
+int device_id = 10;  // Will be assigned by server
+String device_api_key = "jgKYb96yrqHsGHnkfOSlFycfOmCxp1Uv";  // Will be received from server
+String user_id = "b5b2c0465af84b609e44171e24711fd9";  // User ID for device association
+bool device_registered = true;
 
 // MQTT client
 WiFiClient espClient;

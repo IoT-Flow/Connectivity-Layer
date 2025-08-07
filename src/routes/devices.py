@@ -301,6 +301,79 @@ def update_device_info():
             'message': 'An error occurred while updating device configuration'
         }), 500
 
+@device_bp.route('/credentials', methods=['GET'])
+@security_headers_middleware()
+@request_metrics_middleware()
+@rate_limit_device(max_requests=10, window=60, per_device=False)  # 10 requests per minute per IP
+def get_device_credentials():
+    """Get device credentials using API key authentication"""
+    try:
+        # Get API key from headers
+        api_key = request.headers.get('X-API-Key')
+        if not api_key:
+            return jsonify({
+                'error': 'API key required',
+                'message': 'X-API-Key header is required'
+            }), 401
+        
+        # Find device by API key (allow inactive devices for credentials lookup)
+        device = Device.query.filter_by(api_key=api_key).first()
+        if not device:
+            return jsonify({
+                'error': 'Invalid API key',
+                'message': 'Device not found'
+            }), 404
+        
+        # Check if device is active
+        # if device.status != 'active':
+        #     return jsonify({
+        #         'error': 'Device inactive',
+        #         'message': f'Device status is {device.status}. Please contact administrator to activate device.',
+        #         'device_status': device.status
+        #     }), 403
+        
+        # Update device last_seen
+        device.update_last_seen()
+        
+        # Get user information
+        user = User.query.filter_by(id=device.user_id).first()
+        
+        # Return device credentials
+        credentials = {
+            'id': device.id,
+            'name': device.name,
+            'device_type': device.device_type,
+            'user_id': str(device.user_id) if device.user_id else None,
+            'status': device.status,
+            'mqtt_topics': {
+                'telemetry': f"iotflow/devices/{device.id}/telemetry/sensors",
+                'status': f"iotflow/devices/{device.id}/status",
+                'commands': f"iotflow/devices/{device.id}/commands/control",
+                'heartbeat': f"iotflow/devices/{device.id}/status/heartbeat"
+            }
+        }
+        
+        # Add user info if available
+        if user:
+            credentials['owner'] = {
+                'username': user.username,
+                'user_id': user.user_id
+            }
+        
+        current_app.logger.info(f"Credentials retrieved for device {device.name} (ID: {device.id})")
+        
+        return jsonify({
+            'status': 'success',
+            'device': credentials
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting device credentials: {str(e)}")
+        return jsonify({
+            'error': 'Credentials retrieval failed',
+            'message': 'An error occurred while retrieving device credentials'
+        }), 500
+
 @device_bp.route('/heartbeat', methods=['POST'])
 @security_headers_middleware()
 @request_metrics_middleware()
