@@ -129,7 +129,7 @@ def example_batch_simulation():
             location=location,
             telemetry_interval=10,
             heartbeat_interval=60,
-            user_id="5ed1191108b746579ac62ff792efcd7e"
+            user_id="b5b2c0465af84b609e44171e24711fd9"
         )
         
         if not simulator.add_device(device):
