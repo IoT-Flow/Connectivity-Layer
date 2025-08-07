@@ -11,6 +11,7 @@ Features:
 - Device registration via API
 - Real-time telemetry generation
 - Status reporting (online/offline/heartbeat)
+- Configurable timestamp formats
 """
 
 import json
@@ -22,6 +23,7 @@ import threading
 import signal
 import sys
 import math
+import os
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
@@ -36,6 +38,16 @@ except ImportError:
     MQTT_AVAILABLE = False
     
 from concurrent.futures import ThreadPoolExecutor
+
+# Import timestamp utilities
+try:
+    import sys
+    sys.path.append('../src')  # Add src to path for imports
+    from utils.time_util import TimestampFormatter, format_timestamp_for_storage
+    TIMESTAMP_UTIL_AVAILABLE = True
+except ImportError:
+    print("Warning: Timestamp utility not available. Using basic timestamps.")
+    TIMESTAMP_UTIL_AVAILABLE = False
 
 # Import local configuration
 try:
@@ -58,6 +70,228 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+# Device name generation utilities
+def generate_random_device_name(device_type: str = "generic") -> str:
+    """
+    Generate a random device name based on device type
+    
+    Args:
+        device_type: Type of device to generate name for
+        
+    Returns:
+        Random device name string
+    """
+    # Device type specific prefixes and suffixes
+    device_name_templates = {
+        'environmental': {
+            'prefixes': ['Environment', 'Climate', 'Weather', 'Temp', 'Humidity', 'Air'],
+            'suffixes': ['Monitor', 'Sensor', 'Station', 'Probe', 'Detector', 'Meter']
+        },
+        'industrial': {
+            'prefixes': ['Industrial', 'Factory', 'Machine', 'Motor', 'Pump', 'Conveyor'],
+            'suffixes': ['Monitor', 'Controller', 'Sensor', 'Unit', 'System', 'Device']
+        },
+        'energy': {
+            'prefixes': ['Energy', 'Power', 'Electric', 'Smart', 'Grid', 'Voltage'],
+            'suffixes': ['Meter', 'Monitor', 'Sensor', 'Controller', 'Gateway', 'Hub']
+        },
+        'agricultural': {
+            'prefixes': ['Farm', 'Crop', 'Soil', 'Irrigation', 'Greenhouse', 'Field'],
+            'suffixes': ['Monitor', 'Sensor', 'Controller', 'Station', 'System', 'Hub']
+        },
+        'automotive': {
+            'prefixes': ['Vehicle', 'Car', 'Engine', 'Fleet', 'GPS', 'OBD'],
+            'suffixes': ['Tracker', 'Monitor', 'Sensor', 'Unit', 'Device', 'System']
+        },
+        'smart_home': {
+            'prefixes': ['Smart', 'Home', 'Living Room', 'Kitchen', 'Bedroom', 'Garage'],
+            'suffixes': ['Hub', 'Controller', 'Sensor', 'Monitor', 'Device', 'Assistant']
+        }
+    }
+    
+    # Fallback for unknown device types
+    default_template = {
+        'prefixes': ['IoT', 'Smart', 'Connected', 'Wireless', 'Remote', 'Digital'],
+        'suffixes': ['Device', 'Sensor', 'Monitor', 'Controller', 'Unit', 'Hub']
+    }
+    
+    template = device_name_templates.get(device_type, default_template)
+    
+    # Generate random components
+    prefix = random.choice(template['prefixes'])
+    suffix = random.choice(template['suffixes'])
+    
+    # Add random number/identifier
+    identifier_options = [
+        f"{random.randint(1, 999)}",
+        f"Unit-{random.randint(10, 99)}",
+        f"#{random.randint(100, 999)}",
+        f"{chr(65 + random.randint(0, 25))}{random.randint(1, 99)}",  # Like A23, B45
+        f"Zone-{random.randint(1, 20)}"
+    ]
+    
+    identifier = random.choice(identifier_options)
+    
+    # Combine components
+    name_formats = [
+        f"{prefix} {suffix} {identifier}",
+        f"{prefix}-{suffix}-{identifier}",
+        f"{prefix} {suffix} ({identifier})",
+        f"{identifier} {prefix} {suffix}",
+        f"{suffix} {identifier} - {prefix}"
+    ]
+    
+    return random.choice(name_formats)
+
+
+def generate_random_location(device_type: str = "generic") -> str:
+    """
+    Generate a random location based on device type
+    
+    Args:
+        device_type: Type of device to generate location for
+        
+    Returns:
+        Random location string
+    """
+    location_templates = {
+        'environmental': [
+            "Office Building {}, Floor {}",
+            "Warehouse {}, Zone {}",
+            "Laboratory {}, Room {}",
+            "Data Center {}, Rack {}",
+            "Campus Building {}, Wing {}"
+        ],
+        'industrial': [
+            "Factory Floor {}, Line {}",
+            "Production Area {}, Station {}",
+            "Manufacturing Plant {}, Unit {}",
+            "Assembly Line {}, Position {}",
+            "Industrial Complex {}, Building {}"
+        ],
+        'energy': [
+            "Electrical Panel {}, Circuit {}",
+            "Power Station {}, Unit {}",
+            "Substation {}, Bay {}",
+            "Distribution Center {}, Zone {}",
+            "Grid Station {}, Section {}"
+        ],
+        'agricultural': [
+            "Greenhouse {}, Section {}",
+            "Field {}, Zone {}",
+            "Barn {}, Area {}",
+            "Farm Sector {}, Plot {}",
+            "Irrigation Zone {}, Block {}"
+        ],
+        'automotive': [
+            "Vehicle Fleet {}, Unit {}",
+            "Parking Garage {}, Level {}",
+            "Service Bay {}, Station {}",
+            "Transport Hub {}, Dock {}",
+            "Maintenance Area {}, Bay {}"
+        ],
+        'smart_home': [
+            "Residential Unit {}, Room {}",
+            "Apartment {}, {} Area",
+            "House {}, {} Zone",
+            "Smart Home {}, {} Section",
+            "Living Space {}, {} Corner"
+        ]
+    }
+    
+    # Room/area names for smart home
+    home_areas = ["Living Room", "Kitchen", "Bedroom", "Bathroom", "Garage", "Basement", "Attic"]
+    
+    templates = location_templates.get(device_type, location_templates['environmental'])
+    template = random.choice(templates)
+    
+    # Generate location components
+    if device_type == 'smart_home' and '{}' in template:
+        # Special handling for smart home locations
+        building_num = random.randint(101, 999)
+        area = random.choice(home_areas)
+        return template.format(building_num, area)
+    else:
+        # Standard two-component locations
+        component1 = random.choice(['A', 'B', 'C', '1', '2', '3', 'North', 'South', 'Main'])
+        component2 = random.randint(1, 20)
+        return template.format(component1, component2)
+
+
+# Timestamp utility functions for simulator
+def get_simulator_timestamp(format_type: str = "auto") -> str:
+    """
+    Get timestamp for simulator data with configurable format
+    Simulates various timestamp formats that real devices might send
+    
+    Args:
+        format_type: 'auto', 'iso', 'epoch', 'epoch_ms', 'readable', 'compact', 'us_format', 'european'
+    
+    Returns:
+        Formatted timestamp string (as devices would send)
+    """
+    now = datetime.now(timezone.utc)
+    
+    # Use environment setting if auto
+    if format_type == "auto":
+        format_type = os.environ.get('SIMULATOR_TIMESTAMP_FORMAT', 'random').lower()
+    
+    # If random, pick a random format to simulate diverse devices
+    if format_type == 'random':
+        formats = ['iso', 'epoch', 'epoch_ms', 'readable', 'us_format', 'european', 'iso_no_z', 'iso_simple', 'epoch_float']
+        format_type = random.choice(formats)
+    
+    # Generate timestamp in various formats (as real devices would send)
+    if format_type == 'iso':
+        # Proper ISO format with Z suffix (UTC)
+        return now.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    elif format_type == 'iso_no_z':
+        # ISO format without timezone indicator
+        return now.strftime('%Y-%m-%dT%H:%M:%S.%f')
+    elif format_type == 'iso_simple':
+        # Simple ISO format without microseconds
+        return now.strftime('%Y-%m-%dT%H:%M:%SZ')
+    elif format_type == 'epoch':
+        return str(int(now.timestamp()))
+    elif format_type == 'epoch_ms':
+        return str(int(now.timestamp() * 1000))
+    elif format_type == 'epoch_float':
+        # Some devices send epoch as float with decimal
+        return f"{now.timestamp():.3f}"
+    elif format_type == 'readable':
+        return now.strftime('%Y-%m-%d %H:%M:%S')
+    elif format_type == 'compact':
+        return now.strftime('%Y%m%d_%H%M%S')
+    elif format_type == 'us_format':
+        return now.strftime('%m/%d/%Y %H:%M:%S')
+    elif format_type == 'european':
+        return now.strftime('%d/%m/%Y %H:%M:%S')
+    else:
+        return now.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
+def get_device_specific_timestamp(device_type: str) -> str:
+    """
+    Get timestamp in format typical for specific device types
+    Simulates how different types of devices might send timestamps
+    """
+    # Different devices send different timestamp formats (realistic simulation)
+    device_timestamp_formats = {
+        'industrial': ['epoch_ms', 'epoch', 'epoch_float'],  # Industrial devices often use epoch
+        'energy': ['epoch', 'readable', 'epoch_float'],      # Energy meters vary
+        'environmental': ['iso', 'iso_no_z', 'iso_simple'],  # Environmental sensors often use ISO
+        'agricultural': ['readable', 'us_format'],           # Agricultural sensors vary
+        'automotive': ['epoch_ms', 'epoch_float'],           # Automotive systems use milliseconds
+        'smart_home': ['readable', 'compact', 'iso_simple'] # Smart home devices vary
+    }
+    
+    # Pick a random format from the device type's typical formats
+    possible_formats = device_timestamp_formats.get(device_type, ['iso', 'epoch'])
+    chosen_format = random.choice(possible_formats)
+    
+    return get_simulator_timestamp(chosen_format)
 
 
 @dataclass
@@ -237,7 +471,7 @@ class MQTTDeviceSimulator:
                 "device_id": device.device_id,
                 "device_name": device.name,
                 "status": status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": get_device_specific_timestamp(device.device_type),
                 "api_key": device.api_key
             }
             
@@ -258,7 +492,7 @@ class MQTTDeviceSimulator:
             payload = {
                 "device_id": device.device_id,
                 "device_name": device.name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": get_device_specific_timestamp(device.device_type),
                 "uptime_seconds": int(time.time()),
                 "api_key": device.api_key
             }
@@ -313,7 +547,7 @@ class MQTTDeviceSimulator:
             sensor_data[sensor_name] = {
                 "value": final_value,
                 "unit": unit,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": get_device_specific_timestamp(device.device_type)
             }
         
         return sensor_data
@@ -334,7 +568,7 @@ class MQTTDeviceSimulator:
                 "device_name": device.name,
                 "device_type": device.device_type,
                 "location": device.location,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": get_device_specific_timestamp(device.device_type),
                 "data": sensor_data,
                 "metadata": {
                     "firmware_version": "1.0.0-sim",
@@ -416,12 +650,30 @@ class MQTTDeviceSimulator:
         logger.info("Device simulation stopped")
 
 
-def create_sample_devices() -> List[SimulatedDevice]:
-    """Create sample devices for testing"""
+def create_sample_devices(use_random_names: bool = False, custom_names: List[str] = None) -> List[SimulatedDevice]:
+    """Create sample devices for testing
+    
+    Args:
+        use_random_names: If True, generate random device names
+        custom_names: List of custom names to use (overrides random names)
+    
+    Returns:
+        List of SimulatedDevice objects
+    """
     devices = []
     
-    # Use predefined sample devices if available
-    if SAMPLE_DEVICES:
+    # Define device types and base configurations
+    device_configs = [
+        {"device_type": "environmental", "telemetry_interval": 15, "heartbeat_interval": 45},
+        {"device_type": "industrial", "telemetry_interval": 10, "heartbeat_interval": 30},
+        {"device_type": "agricultural", "telemetry_interval": 60, "heartbeat_interval": 120},
+        {"device_type": "energy", "telemetry_interval": 20, "heartbeat_interval": 60},
+        {"device_type": "automotive", "telemetry_interval": 5, "heartbeat_interval": 30},
+        {"device_type": "smart_home", "telemetry_interval": 30, "heartbeat_interval": 90}
+    ]
+    
+    # Use predefined sample devices if available and not using random names
+    if SAMPLE_DEVICES and not use_random_names and not custom_names:
         for sample in SAMPLE_DEVICES[:6]:  # Limit to 6 devices
             device = SimulatedDevice(
                 name=sample['name'],
@@ -432,37 +684,40 @@ def create_sample_devices() -> List[SimulatedDevice]:
             )
             devices.append(device)
     else:
-        # Fallback to basic devices if config not available
-        devices = [
-            SimulatedDevice(
-                name="Environment Monitor 1",
-                device_type="environmental",
-                location="Office Building A, Floor 3",
-                telemetry_interval=15,
-                heartbeat_interval=45
-            ),
-            SimulatedDevice(
-                name="Industrial Sensor Array",
-                device_type="industrial", 
-                location="Factory Floor 1, Zone B",
-                telemetry_interval=10,
-                heartbeat_interval=30
-            ),
-            SimulatedDevice(
-                name="Smart Farm Sensor",
-                device_type="agricultural",
-                location="Greenhouse Section 2",
-                telemetry_interval=60,
-                heartbeat_interval=120
-            ),
-            SimulatedDevice(
-                name="Energy Monitor Home",
-                device_type="energy",
-                location="Residential Unit 101",
-                telemetry_interval=20,
-                heartbeat_interval=60
+        # Generate devices with custom, random, or fallback names
+        for i, config in enumerate(device_configs):
+            device_type = config["device_type"]
+            
+            # Determine device name
+            if custom_names and i < len(custom_names):
+                # Use custom name provided
+                device_name = custom_names[i]
+            elif use_random_names:
+                # Generate random name
+                device_name = generate_random_device_name(device_type)
+            else:
+                # Use fallback names
+                fallback_names = {
+                    "environmental": "Environment Monitor",
+                    "industrial": "Industrial Sensor Array", 
+                    "agricultural": "Smart Farm Sensor",
+                    "energy": "Energy Monitor",
+                    "automotive": "Vehicle Tracker",
+                    "smart_home": "Smart Home Hub"
+                }
+                device_name = f"{fallback_names.get(device_type, 'IoT Device')} {i+1}"
+            
+            # Generate location (always random for variety)
+            location = generate_random_location(device_type)
+            
+            device = SimulatedDevice(
+                name=device_name,
+                device_type=device_type,
+                location=location,
+                telemetry_interval=config["telemetry_interval"],
+                heartbeat_interval=config["heartbeat_interval"]
             )
-        ]
+            devices.append(device)
     
     return devices
 
@@ -483,6 +738,13 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true",
                        help="Enable verbose logging")
     
+    # Device naming options
+    naming_group = parser.add_mutually_exclusive_group()
+    naming_group.add_argument("--random-names", action="store_true",
+                             help="Generate random device names")
+    naming_group.add_argument("--device-names", nargs='+', 
+                             help="Specify custom device names (space-separated)")
+    
     args = parser.parse_args()
     
     if args.verbose:
@@ -495,8 +757,21 @@ def main():
         mqtt_port=args.mqtt_port
     )
     
-    # Create and add sample devices
-    sample_devices = create_sample_devices()[:args.devices]
+    # Create and add sample devices with naming options
+    if args.device_names:
+        logger.info(f"Using custom device names: {args.device_names}")
+        sample_devices = create_sample_devices(
+            use_random_names=False, 
+            custom_names=args.device_names
+        )[:args.devices]
+    elif args.random_names:
+        logger.info("Generating random device names")
+        sample_devices = create_sample_devices(
+            use_random_names=True
+        )[:args.devices]
+    else:
+        logger.info("Using default device names")
+        sample_devices = create_sample_devices()[:args.devices]
     
     for device in sample_devices:
         device.user_id = args.user_id

@@ -17,6 +17,7 @@ from cryptography.fernet import Fernet
 
 from .topics import MQTTTopicManager, QoSLevel, TopicType
 from ..services.mqtt_auth import MQTTAuthService
+from ..utils.time_util import TimestampFormatter, format_timestamp_for_storage
 
 
 @dataclass
@@ -62,7 +63,7 @@ class MQTTMessage:
     
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow()
+            self.timestamp = TimestampFormatter.get_current_utc()
     
     def to_dict(self) -> dict:
         """Convert message to dictionary"""
@@ -71,7 +72,7 @@ class MQTTMessage:
             "payload": self.payload,
             "qos": self.qos,
             "retain": self.retain,
-            "timestamp": self.timestamp.isoformat() if self.timestamp else None
+            "timestamp": format_timestamp_for_storage(self.timestamp) if self.timestamp else None
         }
 
 

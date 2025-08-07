@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from ..models import Device, DeviceAuth, db
 from ..services.iotdb import IoTDBService
+from ..utils.time_util import TimestampFormatter, parse_device_timestamp, format_timestamp_for_storage
 
 logger = logging.getLogger(__name__)
 
@@ -195,23 +196,19 @@ class MQTTAuthService:
                     return False
                 
                 # Parse timestamp if provided
+                # The timestamp formatter handles various formats from different devices:
+                # - ISO: "2025-08-07T14:30:15Z", "2025-08-07T14:30:15"
+                # - Epoch: "1723034415", 1723034415123 (seconds/milliseconds)
+                # - Readable: "2025-08-07 14:30:15", "08/07/2025 14:30:15"
+                # - And more formats that real IoT devices might send
                 if timestamp_str:
-                    try:
-                        # Try ISO format first
-                        if isinstance(timestamp_str, str) and ('T' in timestamp_str or ':' in timestamp_str):
-                            if timestamp_str.endswith('Z'):
-                                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                            else:
-                                timestamp = datetime.fromisoformat(timestamp_str)
-                        else:
-                            # Handle numeric timestamp (epoch seconds or milliseconds)
-                            ts_val = float(timestamp_str)
-                            if ts_val < 1e10:  # If less than 10 billion, assume seconds
-                                timestamp = datetime.fromtimestamp(ts_val, tz=timezone.utc)
-                            else:  # Assume milliseconds
-                                timestamp = datetime.fromtimestamp(ts_val / 1000, tz=timezone.utc)
-                    except ValueError as e:
-                        logger.warning(f"Invalid timestamp format from device {device_id}: {timestamp_str} - {str(e)}")
+                    timestamp = parse_device_timestamp(timestamp_str)
+                    if timestamp:
+                        logger.debug(f"Parsed timestamp for device {device_id}: {format_timestamp_for_storage(timestamp)}")
+                    else:
+                        logger.warning(f"Failed to parse timestamp from device {device_id}: {timestamp_str}")
+                        # Use current time as fallback
+                        timestamp = TimestampFormatter.get_current_utc()
                 
                 # Log what we're processing
                 logger.debug(f"Processing telemetry for device {device_id}: {telemetry_data}")

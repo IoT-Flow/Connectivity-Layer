@@ -551,6 +551,11 @@ poetry run python scripts/send_device_command.py -d TestDevice -c get_status
 | | `FLASK_DEBUG` | Debug mode | `True` |
 | | `SECRET_KEY` | Flask secret key | Auto-generated |
 | **Database** | `DATABASE_URL` | SQLite database path | `sqlite:///iotflow.db` |
+| | `DB_PRIMARY_PATH` | Primary database file path | `instance/iotflow.db` |
+| | `DB_FALLBACK_PATH` | Fallback database file path | `iotflow.db` |
+| **Timestamps** | `TIMESTAMP_FORMAT` | Display format (iso/readable/short/compact) | `readable` |
+| | `TIMESTAMP_TIMEZONE` | Timezone label for display | `UTC` |
+| **Simulator** | `SIMULATOR_TIMESTAMP_FORMAT` | Timestamp format devices send (random/iso/epoch/etc) | `random` |
 | **IoTDB** | `IOTDB_HOST` | IoTDB host address | `localhost` |
 | | `IOTDB_PORT` | IoTDB port | `6667` |
 | | `IOTDB_USER` | IoTDB username | `root` |

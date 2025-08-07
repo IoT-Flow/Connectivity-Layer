@@ -160,12 +160,16 @@ def _get_standalone_db_session():
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
         import os
+        from dotenv import load_dotenv
+        
+        # Load environment variables
+        load_dotenv()
         
         # Get database URL - ensure we use the same database as Flask
-        # Flask typically uses instance/iotflow.db
+        # Use environment variables for database paths
         possible_db_paths = [
-            'instance/iotflow.db',  # Flask default instance folder
-            'iotflow.db',           # Fallback
+            os.environ.get('DB_PRIMARY_PATH', 'instance/iotflow.db'),  # Primary path from env
+            os.environ.get('DB_FALLBACK_PATH', 'iotflow.db'),          # Fallback path from env
         ]
         
         db_url = None
