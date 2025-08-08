@@ -32,9 +32,7 @@ class IoTDBConfig:
             )
 
             self.session.open(False)  # False means not enable_rpc_compression
-            logger.info(
-                f"IoTDB session initialized successfully - {self.host}:{self.port}"
-            )
+            logger.info(f"IoTDB session initialized successfully - {self.host}:{self.port}")
 
             # Create the root database path if it doesn't exist
             self._ensure_database_exists()

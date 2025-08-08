@@ -43,16 +43,10 @@ class HealthMonitor:
             health_data["metrics"]["devices"] = HealthMonitor._get_device_metrics()
 
             # Determine overall status
-            failed_checks = [
-                name
-                for name, check in health_data["checks"].items()
-                if not check.get("healthy", False)
-            ]
+            failed_checks = [name for name, check in health_data["checks"].items() if not check.get("healthy", False)]
 
             if failed_checks:
-                health_data["status"] = (
-                    "degraded" if len(failed_checks) == 1 else "unhealthy"
-                )
+                health_data["status"] = "degraded" if len(failed_checks) == 1 else "unhealthy"
                 health_data["failed_checks"] = failed_checks
 
         except Exception as e:
@@ -97,9 +91,7 @@ class HealthMonitor:
                     "healthy": True,
                     "response_time_ms": round(response_time, 2),
                     "status": "connected",
-                    "memory_usage_mb": round(
-                        info.get("used_memory", 0) / 1024 / 1024, 2
-                    ),
+                    "memory_usage_mb": round(info.get("used_memory", 0) / 1024 / 1024, 2),
                     "connected_clients": info.get("connected_clients", 0),
                 }
             else:
@@ -126,9 +118,7 @@ class HealthMonitor:
                 try:
                     query_start = time.time()
                     # Simple test query - check if we can execute basic operations
-                    session_data_set = iotdb_config.session.execute_query_statement(
-                        "SHOW DATABASES"
-                    )
+                    session_data_set = iotdb_config.session.execute_query_statement("SHOW DATABASES")
                     query_time = (time.time() - query_start) * 1000
                     session_data_set.close_operation_handle()
 
@@ -166,13 +156,9 @@ class HealthMonitor:
             return {
                 "cpu_percent": psutil.cpu_percent(interval=1),
                 "memory_percent": psutil.virtual_memory().percent,
-                "memory_available_mb": round(
-                    psutil.virtual_memory().available / 1024 / 1024, 2
-                ),
+                "memory_available_mb": round(psutil.virtual_memory().available / 1024 / 1024, 2),
                 "disk_usage_percent": psutil.disk_usage("/").percent,
-                "load_average": (
-                    list(psutil.getloadavg()) if hasattr(psutil, "getloadavg") else None
-                ),
+                "load_average": (list(psutil.getloadavg()) if hasattr(psutil, "getloadavg") else None),
             }
         except Exception as e:
             current_app.logger.error(f"System metrics error: {str(e)}")
@@ -253,9 +239,7 @@ class HealthMonitor:
 
         except Exception as e:
             try:
-                current_app.logger.error(
-                    f"Error getting telemetry count from IoTDB: {str(e)}"
-                )
+                current_app.logger.error(f"Error getting telemetry count from IoTDB: {str(e)}")
             except Exception:
                 # Fallback if current_app is not available
                 print(f"Error getting telemetry count from IoTDB: {str(e)}")
@@ -274,9 +258,7 @@ def device_heartbeat_monitor():
                 # Update device heartbeat in Redis
                 if hasattr(current_app, "redis_client"):
                     try:
-                        current_app.redis_client.setex(
-                            f"heartbeat:{device.id}", 300, "online"  # 5 minutes TTL
-                        )
+                        current_app.redis_client.setex(f"heartbeat:{device.id}", 300, "online")  # 5 minutes TTL
                     except Exception as e:
                         current_app.logger.error(f"Redis heartbeat error: {str(e)}")
 
@@ -322,15 +304,9 @@ def request_metrics_middleware():
             # Store metrics in Redis if available
             if hasattr(current_app, "redis_client"):
                 try:
-                    metrics_key = (
-                        f"metrics:{request.method}:{request.endpoint or 'unknown'}"
-                    )
-                    current_app.redis_client.lpush(
-                        metrics_key, f"{status_code}:{duration:.3f}"
-                    )
-                    current_app.redis_client.ltrim(
-                        metrics_key, 0, 999
-                    )  # Keep last 1000 entries
+                    metrics_key = f"metrics:{request.method}:{request.endpoint or 'unknown'}"
+                    current_app.redis_client.lpush(metrics_key, f"{status_code}:{duration:.3f}")
+                    current_app.redis_client.ltrim(metrics_key, 0, 999)  # Keep last 1000 entries
                 except Exception as e:
                     current_app.logger.error(f"Metrics storage error: {str(e)}")
 

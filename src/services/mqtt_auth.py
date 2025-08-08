@@ -60,10 +60,7 @@ class MQTTAuthService:
                 self.authenticated_devices[device.id] = device
 
                 # Also update device status in Redis directly
-                if (
-                    hasattr(self.app, "device_status_cache")
-                    and self.app.device_status_cache
-                ):
+                if hasattr(self.app, "device_status_cache") and self.app.device_status_cache:
                     self.app.device_status_cache.set_device_status(device.id, "online")
 
                 logger.info(
@@ -77,9 +74,7 @@ class MQTTAuthService:
             logger.error("Error authenticating device by API key: %s", e)
             return None
 
-    def validate_device_message(
-        self, device_id: int, api_key: str, topic: str
-    ) -> Optional[Device]:
+    def validate_device_message(self, device_id: int, api_key: str, topic: str) -> Optional[Device]:
         """
         Validate that a device is authorized to publish to a specific topic
         Returns the device if validation passes, None otherwise
@@ -93,9 +88,7 @@ class MQTTAuthService:
 
             # Check topic authorization
             if not self.is_device_authorized(device_id, topic):
-                logger.warning(
-                    "Device %d not authorized for topic: %s", device_id, topic
-                )
+                logger.warning("Device %d not authorized for topic: %s", device_id, topic)
                 return None
 
             return device
@@ -112,9 +105,7 @@ class MQTTAuthService:
             # Check if device is authenticated (allow inactive devices for now)
             device = self.authenticated_devices.get(device_id)
             if not device:
-                device = Device.query.filter_by(
-                    id=device_id
-                ).first()  # Remove status='active' filter
+                device = Device.query.filter_by(id=device_id).first()  # Remove status='active' filter
                 if not device:
                     return False
                 self.authenticated_devices[device_id] = device
@@ -156,9 +147,7 @@ class MQTTAuthService:
             logger.error(f"Error checking device authorization: {e}")
             return False
 
-    def handle_telemetry_message(
-        self, device_id: int, api_key: str, topic: str, payload: str
-    ) -> bool:
+    def handle_telemetry_message(self, device_id: int, api_key: str, topic: str, payload: str) -> bool:
         """
         Handle incoming telemetry message from device with server-side authentication
         Store data only in IoTDB
@@ -170,22 +159,16 @@ class MQTTAuthService:
         try:
             with self.app.app_context():
                 # First, validate device registration
-                is_registered, reg_message = self.validate_device_registration(
-                    device_id, api_key
-                )
+                is_registered, reg_message = self.validate_device_registration(device_id, api_key)
                 if not is_registered:
-                    logger.warning(
-                        f"Device registration validation failed for device {device_id}: {reg_message}"
-                    )
+                    logger.warning(f"Device registration validation failed for device {device_id}: {reg_message}")
                     return False
 
                 # Parse JSON payload
                 try:
                     data = json.loads(payload)
                 except json.JSONDecodeError:
-                    logger.error(
-                        "Invalid JSON payload from device %d: %s", device_id, payload
-                    )
+                    logger.error("Invalid JSON payload from device %d: %s", device_id, payload)
                     return False
 
                 # Validate device and authorization using payload data
@@ -195,17 +178,13 @@ class MQTTAuthService:
                     device,
                 ) = self.is_device_registered_for_mqtt(data)
                 if not is_authorized:
-                    logger.warning(
-                        f"Device MQTT authorization failed for device {device_id}: {auth_message}"
-                    )
+                    logger.warning(f"Device MQTT authorization failed for device {device_id}: {auth_message}")
                     return False
 
                 # Validate device and authorization
                 device = self.validate_device_message(device_id, api_key, topic)
                 if not device:
-                    logger.warning(
-                        "Unauthorized telemetry attempt from device_id %d", device_id
-                    )
+                    logger.warning("Unauthorized telemetry attempt from device_id %d", device_id)
                     return False
 
                 # Handle both structured and flat data formats
@@ -252,16 +231,12 @@ class MQTTAuthService:
                             f"Parsed timestamp for device {device_id}: {format_timestamp_for_storage(timestamp)}"
                         )
                     else:
-                        logger.warning(
-                            f"Failed to parse timestamp from device {device_id}: {timestamp_str}"
-                        )
+                        logger.warning(f"Failed to parse timestamp from device {device_id}: {timestamp_str}")
                         # Use current time as fallback
                         timestamp = TimestampFormatter.get_current_utc()
 
                 # Log what we're processing
-                logger.debug(
-                    f"Processing telemetry for device {device_id}: {telemetry_data}"
-                )
+                logger.debug(f"Processing telemetry for device {device_id}: {telemetry_data}")
 
                 # Store in IoTDB
                 success = self.iotdb_service.write_telemetry_data(
@@ -277,10 +252,7 @@ class MQTTAuthService:
                     device.update_last_seen()
 
                 # Update device status in Redis cache directly if available
-                if (
-                    hasattr(self.app, "device_status_cache")
-                    and self.app.device_status_cache
-                ):
+                if hasattr(self.app, "device_status_cache") and self.app.device_status_cache:
                     self.app.device_status_cache.update_device_last_seen(device_id)
                     self.app.device_status_cache.set_device_status(device_id, "online")
 
@@ -291,9 +263,7 @@ class MQTTAuthService:
                     )
                     return True
                 else:
-                    logger.error(
-                        "Failed to store telemetry in IoTDB for device %d", device_id
-                    )
+                    logger.error("Failed to store telemetry in IoTDB for device %d", device_id)
                     return False
 
         except Exception as e:
@@ -339,16 +309,12 @@ class MQTTAuthService:
                 else:
                     del self.authenticated_devices[device_id]
 
-            logger.info(
-                f"Cleaned up inactive devices. Active: {len(active_device_ids)}"
-            )
+            logger.info(f"Cleaned up inactive devices. Active: {len(active_device_ids)}")
 
         except Exception as e:
             logger.error(f"Error cleaning up inactive devices: {e}")
 
-    def validate_device_registration(
-        self, device_id: int, api_key: str
-    ) -> tuple[bool, str]:
+    def validate_device_registration(self, device_id: int, api_key: str) -> tuple[bool, str]:
         """
         Validate that device is properly registered before allowing MQTT communication
         Returns (is_valid, message)
@@ -369,9 +335,7 @@ class MQTTAuthService:
 
                 # Log device status but don't reject inactive devices
                 if device.status != "active":
-                    logger.info(
-                        f"Device {device_id} has status '{device.status}' but allowing MQTT communication"
-                    )
+                    logger.info(f"Device {device_id} has status '{device.status}' but allowing MQTT communication")
 
                 # Update last seen timestamp
                 device.update_last_seen()
@@ -385,9 +349,7 @@ class MQTTAuthService:
             logger.error(f"Error validating device registration: {e}")
             return False, f"Validation error: {str(e)}"
 
-    def is_device_registered_for_mqtt(
-        self, payload: dict
-    ) -> tuple[bool, str, Optional[Device]]:
+    def is_device_registered_for_mqtt(self, payload: dict) -> tuple[bool, str, Optional[Device]]:
         """
         Check if device is registered and authorized to send MQTT data
         Returns (is_authorized, message, device)
@@ -404,9 +366,7 @@ class MQTTAuthService:
                 return False, "Invalid API key or device not found", None
 
             # No additional validation needed since authenticate_device_by_api_key already validates
-            logger.info(
-                f"Device {device.id} ({device.name}) authorized for MQTT communication"
-            )
+            logger.info(f"Device {device.id} ({device.name}) authorized for MQTT communication")
             return True, "Device authorized for MQTT communication", device
 
         except Exception as e:

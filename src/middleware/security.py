@@ -129,9 +129,7 @@ class InputSanitizer:
         value_upper = value.upper()
         for pattern in InputSanitizer.SQL_INJECTION_PATTERNS:
             if re.search(pattern, value_upper, re.IGNORECASE):
-                current_app.logger.warning(
-                    f"Potential SQL injection attempt: {value[:100]} from {request.remote_addr}"
-                )
+                current_app.logger.warning(f"Potential SQL injection attempt: {value[:100]} from {request.remote_addr}")
                 raise ValueError("Invalid input detected")
 
     @staticmethod
@@ -139,19 +137,14 @@ class InputSanitizer:
         """Check for XSS patterns"""
         for pattern in InputSanitizer.XSS_PATTERNS:
             if re.search(pattern, value, re.IGNORECASE):
-                current_app.logger.warning(
-                    f"Potential XSS attempt: {value[:100]} from {request.remote_addr}"
-                )
+                current_app.logger.warning(f"Potential XSS attempt: {value[:100]} from {request.remote_addr}")
                 raise ValueError("Invalid input detected")
 
     @staticmethod
     def sanitize_json_payload(data):
         """Recursively sanitize JSON payload"""
         if isinstance(data, dict):
-            return {
-                key: InputSanitizer.sanitize_json_payload(value)
-                for key, value in data.items()
-            }
+            return {key: InputSanitizer.sanitize_json_payload(value) for key, value in data.items()}
         elif isinstance(data, list):
             return [InputSanitizer.sanitize_json_payload(item) for item in data]
         elif isinstance(data, str):
@@ -193,9 +186,7 @@ def security_headers_middleware():
 
                 # HSTS (if HTTPS)
                 if request.is_secure:
-                    response.headers[
-                        "Strict-Transport-Security"
-                    ] = "max-age=31536000; includeSubDomains"
+                    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
                 # Remove server information
                 response.headers.pop("Server", None)
@@ -216,9 +207,7 @@ def input_sanitization_middleware():
             # Sanitize JSON payload if present
             if request.is_json and hasattr(request, "validated_json"):
                 try:
-                    request.validated_json = InputSanitizer.sanitize_json_payload(
-                        request.validated_json
-                    )
+                    request.validated_json = InputSanitizer.sanitize_json_payload(request.validated_json)
                 except ValueError as e:
                     return ErrorHandler.handle_validation_error(str(e))
 
@@ -226,9 +215,7 @@ def input_sanitization_middleware():
             try:
                 sanitized_args = {}
                 for key, value in request.args.items():
-                    sanitized_args[key] = InputSanitizer.sanitize_string(
-                        value, max_length=500
-                    )
+                    sanitized_args[key] = InputSanitizer.sanitize_string(value, max_length=500)
                 # Note: Flask's request.args is immutable, so we store in g
                 g.sanitized_args = sanitized_args
             except ValueError as e:
@@ -305,6 +292,4 @@ def comprehensive_error_handler(app):
     @app.errorhandler(Exception)
     def handle_exception(error):
         app.logger.error(f"Unhandled exception: {str(error)}", exc_info=True)
-        return ErrorHandler.handle_server_error(
-            f"An unexpected error occurred: {str(error)}", include_trace=app.debug
-        )
+        return ErrorHandler.handle_server_error(f"An unexpected error occurred: {str(error)}", include_trace=app.debug)

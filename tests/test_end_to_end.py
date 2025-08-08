@@ -16,9 +16,7 @@ import uuid
 
 
 class IoTFlowTester:
-    def __init__(
-        self, base_url="http://localhost:5000", mqtt_host="localhost", mqtt_port=1883
-    ):
+    def __init__(self, base_url="http://localhost:5000", mqtt_host="localhost", mqtt_port=1883):
         self.base_url = base_url
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
@@ -54,9 +52,7 @@ class IoTFlowTester:
                 )
                 return True
             else:
-                self.log_test(
-                    "System Health Check", False, f"HTTP {response.status_code}"
-                )
+                self.log_test("System Health Check", False, f"HTTP {response.status_code}")
                 return False
         except Exception as e:
             self.log_test("System Health Check", False, str(e))
@@ -76,9 +72,7 @@ class IoTFlowTester:
                 )
                 return connected
             else:
-                self.log_test(
-                    "MQTT Broker Connection", False, f"HTTP {response.status_code}"
-                )
+                self.log_test("MQTT Broker Connection", False, f"HTTP {response.status_code}")
                 return False
         except Exception as e:
             self.log_test("MQTT Broker Connection", False, str(e))
@@ -134,9 +128,7 @@ class IoTFlowTester:
                 "X-API-Key": self.test_api_key,
             }
 
-            response = self.session.get(
-                f"{self.base_url}/api/v1/devices/status", headers=headers
-            )
+            response = self.session.get(f"{self.base_url}/api/v1/devices/status", headers=headers)
 
             if response.status_code == 200:
                 data = response.json()
@@ -188,9 +180,7 @@ class IoTFlowTester:
                 return False
 
             # Get configuration
-            response = self.session.get(
-                f"{self.base_url}/api/v1/devices/config", headers=headers
-            )
+            response = self.session.get(f"{self.base_url}/api/v1/devices/config", headers=headers)
 
             if response.status_code == 200:
                 data = response.json()
@@ -294,9 +284,7 @@ class IoTFlowTester:
             # Disconnect
             self.mqtt_client.disconnect()
 
-            self.log_test(
-                "MQTT Telemetry Submission", True, f"Published to topic: {topic}"
-            )
+            self.log_test("MQTT Telemetry Submission", True, f"Published to topic: {topic}")
             return True
 
         except Exception as e:
@@ -331,9 +319,7 @@ class IoTFlowTester:
             # Disconnect
             self.mqtt_client.disconnect()
 
-            self.log_test(
-                "MQTT Status Message", True, f"Published status to topic: {topic}"
-            )
+            self.log_test("MQTT Status Message", True, f"Published status to topic: {topic}")
             return True
 
         except Exception as e:
@@ -357,9 +343,7 @@ class IoTFlowTester:
             if response.status_code == 200:
                 data = response.json()
                 count = data.get("count", 0)
-                self.log_test(
-                    "Telemetry Retrieval", True, f"Retrieved {count} telemetry records"
-                )
+                self.log_test("Telemetry Retrieval", True, f"Retrieved {count} telemetry records")
                 return True
             else:
                 self.log_test(
@@ -380,9 +364,7 @@ class IoTFlowTester:
                 "X-API-Key": self.test_api_key,
             }
 
-            response = self.session.get(
-                f"{self.base_url}/api/v1/devices/status", headers=headers
-            )
+            response = self.session.get(f"{self.base_url}/api/v1/devices/status", headers=headers)
 
             if response.status_code == 200:
                 data = response.json()
@@ -499,9 +481,7 @@ class IoTFlowTester:
                 )
                 return True
             else:
-                self.log_test(
-                    "IoTDB Verification", False, "Telemetry was not stored in IoTDB"
-                )
+                self.log_test("IoTDB Verification", False, "Telemetry was not stored in IoTDB")
                 return False
 
         except Exception as e:

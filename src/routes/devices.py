@@ -27,9 +27,7 @@ iotdb_service = IoTDBService()
 @device_bp.route("/register", methods=["POST"])
 @security_headers_middleware()
 @request_metrics_middleware()
-@rate_limit_device(
-    max_requests=10, window=300, per_device=False
-)  # 10 registrations per 5 minutes per IP
+@rate_limit_device(max_requests=10, window=300, per_device=False)  # 10 registrations per 5 minutes per IP
 @validate_json_payload(["name", "device_type", "user_id"])
 @input_sanitization_middleware()
 def register_device():
@@ -79,20 +77,14 @@ def register_device():
         db.session.add(device)
         db.session.commit()
 
-        current_app.logger.info(
-            f"New device registered: {device.name} (ID: {device.id}) by user: {user.username}"
-        )
+        current_app.logger.info(f"New device registered: {device.name} (ID: {device.id}) by user: {user.username}")
 
         response_data = device.to_dict()
-        response_data[
-            "api_key"
-        ] = device.api_key  # Include API key in registration response
+        response_data["api_key"] = device.api_key  # Include API key in registration response
         response_data["owner"] = {"username": user.username, "email": user.email}
 
         return (
-            jsonify(
-                {"message": "Device registered successfully", "device": response_data}
-            ),
+            jsonify({"message": "Device registered successfully", "device": response_data}),
             201,
         )
 
@@ -142,10 +134,7 @@ def get_device_status():
         is_online = False
 
         # Try to get status from Redis cache
-        if (
-            hasattr(current_app, "device_status_cache")
-            and current_app.device_status_cache
-        ):
+        if hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
             cached_status = current_app.device_status_cache.get_device_status(device.id)
             if cached_status == "online":
                 is_online = True
@@ -243,10 +232,7 @@ def submit_telemetry():
         # Update device last_seen
         device.update_last_seen()
 
-        current_app.logger.info(
-            f"Telemetry received from device {device.name} (ID: {device.id}) - "
-            f"IoTDB: ✓"
-        )
+        current_app.logger.info(f"Telemetry received from device {device.name} (ID: {device.id}) - " f"IoTDB: ✓")
 
         return (
             jsonify(
@@ -298,11 +284,7 @@ def get_telemetry():
             # Filter by data type if specified (this would need to be implemented in IoTDB service)
             if data_type and telemetry_data:
                 # Simple filtering - in practice this should be done in the IoTDB query
-                telemetry_data = [
-                    record
-                    for record in telemetry_data
-                    if record.get("data_type") == data_type
-                ]
+                telemetry_data = [record for record in telemetry_data if record.get("data_type") == data_type]
 
         except Exception as e:
             current_app.logger.error(f"Error querying IoTDB: {str(e)}")
@@ -359,9 +341,7 @@ def update_device_info():
         device.updated_at = datetime.now(timezone.utc)
         db.session.commit()
 
-        current_app.logger.info(
-            f"Device configuration updated: {device.name} (ID: {device.id})"
-        )
+        current_app.logger.info(f"Device configuration updated: {device.name} (ID: {device.id})")
 
         return (
             jsonify(
@@ -390,9 +370,7 @@ def update_device_info():
 @device_bp.route("/credentials", methods=["GET"])
 @security_headers_middleware()
 @request_metrics_middleware()
-@rate_limit_device(
-    max_requests=10, window=60, per_device=False
-)  # 10 requests per minute per IP
+@rate_limit_device(max_requests=10, window=60, per_device=False)  # 10 requests per minute per IP
 def get_device_credentials():
     """Get device credentials using API key authentication"""
     try:
@@ -450,9 +428,7 @@ def get_device_credentials():
         if user:
             credentials["owner"] = {"username": user.username, "user_id": user.user_id}
 
-        current_app.logger.info(
-            f"Credentials retrieved for device {device.name} (ID: {device.id})"
-        )
+        current_app.logger.info(f"Credentials retrieved for device {device.name} (ID: {device.id})")
 
         return jsonify({"status": "success", "device": credentials}), 200
 
@@ -558,9 +534,7 @@ def get_device_config():
         device = request.device
 
         # Get all active configurations for the device
-        configs = DeviceConfiguration.query.filter_by(
-            device_id=device.id, is_active=True
-        ).all()
+        configs = DeviceConfiguration.query.filter_by(device_id=device.id, is_active=True).all()
 
         config_dict = {}
         for config in configs:
@@ -581,9 +555,7 @@ def get_device_config():
             config_dict[config.config_key] = {
                 "value": value,
                 "data_type": config.data_type,
-                "updated_at": (
-                    config.updated_at.isoformat() if config.updated_at else None
-                ),
+                "updated_at": (config.updated_at.isoformat() if config.updated_at else None),
             }
 
         return (
@@ -627,9 +599,7 @@ def update_device_config():
         data_type = data.get("data_type", "string")
 
         # Check if configuration already exists
-        existing_config = DeviceConfiguration.query.filter_by(
-            device_id=device.id, config_key=config_key
-        ).first()
+        existing_config = DeviceConfiguration.query.filter_by(device_id=device.id, config_key=config_key).first()
 
         if existing_config:
             # Update existing configuration
@@ -649,9 +619,7 @@ def update_device_config():
 
         db.session.commit()
 
-        current_app.logger.info(
-            f"Configuration updated for device {device.name}: {config_key}"
-        )
+        current_app.logger.info(f"Configuration updated for device {device.name}: {config_key}")
 
         return (
             jsonify(
@@ -715,9 +683,7 @@ def get_all_device_statuses():
 
             # Try to get online/offline status from Redis cache first
             if redis_available:
-                cached_status = current_app.device_status_cache.get_device_status(
-                    device.id
-                )
+                cached_status = current_app.device_status_cache.get_device_status(device.id)
                 if cached_status:
                     device_info["is_online"] = cached_status == "online"
                 else:
@@ -779,16 +745,11 @@ def get_device_status_by_id(device_id):
         }
 
         # Try to get additional data from Redis cache
-        if (
-            hasattr(current_app, "device_status_cache")
-            and current_app.device_status_cache
-        ):
+        if hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
             # Check if Redis cache is available
             if current_app.device_status_cache.available:
                 # Get online/offline status from cache, but verify against last_seen time
-                cached_status = current_app.device_status_cache.get_device_status(
-                    device.id
-                )
+                cached_status = current_app.device_status_cache.get_device_status(device.id)
 
                 # Always check if the device should be online based on last_seen
                 actual_online_status = is_device_online(device)
@@ -801,40 +762,30 @@ def get_device_status_by_id(device_id):
                     response["status_source"] = "database"
 
                 # Get last seen timestamp from cache
-                last_seen = current_app.device_status_cache.get_device_last_seen(
-                    device.id
-                )
+                last_seen = current_app.device_status_cache.get_device_last_seen(device.id)
                 if last_seen:
                     response["last_seen"] = last_seen.isoformat()
                     response["last_seen_source"] = "redis_cache"
                 else:
-                    response["last_seen"] = (
-                        device.last_seen.isoformat() if device.last_seen else None
-                    )
+                    response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
                     response["last_seen_source"] = "database"
             else:
                 # Redis not available
                 response["is_online"] = is_device_online(device)
-                response["last_seen"] = (
-                    device.last_seen.isoformat() if device.last_seen else None
-                )
+                response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
                 response["status_source"] = "database"
                 response["last_seen_source"] = "database"
         else:
             # Redis not configured
             response["is_online"] = is_device_online(device)
-            response["last_seen"] = (
-                device.last_seen.isoformat() if device.last_seen else None
-            )
+            response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
             response["status_source"] = "database"
             response["last_seen_source"] = "database"
 
         return jsonify({"status": "success", "device": response}), 200
 
     except Exception as e:
-        current_app.logger.error(
-            f"Error getting device status for ID {device_id}: {str(e)}"
-        )
+        current_app.logger.error(f"Error getting device status for ID {device_id}: {str(e)}")
         return (
             jsonify(
                 {
@@ -890,17 +841,11 @@ def sync_device_status_to_redis(device, is_online, time_since_last_seen=None):
 
             if cache_available:
                 # Use the Flask app's Redis cache
-                redis_status = current_app.device_status_cache.get_device_status(
-                    device.id
-                )
+                redis_status = current_app.device_status_cache.get_device_status(device.id)
 
-                if (is_online and redis_status != "online") or (
-                    not is_online and redis_status != "offline"
-                ):
+                if (is_online and redis_status != "online") or (not is_online and redis_status != "offline"):
                     new_status = "online" if is_online else "offline"
-                    current_app.device_status_cache.set_device_status(
-                        device.id, new_status
-                    )
+                    current_app.device_status_cache.set_device_status(device.id, new_status)
 
                     if time_since_last_seen is not None:
                         current_app.logger.info(
@@ -908,9 +853,7 @@ def sync_device_status_to_redis(device, is_online, time_since_last_seen=None):
                             f"(last seen {time_since_last_seen:.1f}s ago)"
                         )
                     else:
-                        current_app.logger.info(
-                            f"Updated device {device.id} status in Redis: {new_status}"
-                        )
+                        current_app.logger.info(f"Updated device {device.id} status in Redis: {new_status}")
                 return
 
         except RuntimeError:

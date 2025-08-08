@@ -110,9 +110,7 @@ def get_redis_util() -> Optional[DeviceRedisUtil]:
     return _redis_util
 
 
-def sync_device_status_safe(
-    device_id: int, is_online: bool, time_since_last_seen: Optional[float] = None
-):
+def sync_device_status_safe(device_id: int, is_online: bool, time_since_last_seen: Optional[float] = None):
     """
     Safely sync device status to Redis and database without requiring Flask application context
 
@@ -140,9 +138,7 @@ def sync_device_status_safe(
                         f"(last seen {time_since_last_seen:.1f}s ago)"
                     )
                 else:
-                    logger.info(
-                        f"Updated device {device_id} status in Redis: {new_status}"
-                    )
+                    logger.info(f"Updated device {device_id} status in Redis: {new_status}")
 
                 # Also sync to database
                 _sync_to_database_standalone(device_id, new_status, current_status)
@@ -177,9 +173,7 @@ def _get_standalone_db_session():
         # Get database URL - ensure we use the same database as Flask
         # Use environment variables for database paths
         possible_db_paths = [
-            os.environ.get(
-                "DB_PRIMARY_PATH", "instance/iotflow.db"
-            ),  # Primary path from env
+            os.environ.get("DB_PRIMARY_PATH", "instance/iotflow.db"),  # Primary path from env
             os.environ.get("DB_FALLBACK_PATH", "iotflow.db"),  # Fallback path from env
         ]
 
@@ -215,9 +209,7 @@ def _get_standalone_db_session():
     return _standalone_session_factory()
 
 
-def _sync_to_database_standalone(
-    device_id: int, new_status: str, old_status: str = None
-):
+def _sync_to_database_standalone(device_id: int, new_status: str, old_status: str = None):
     """
     Sync device status to database without Flask application context
 
@@ -239,9 +231,7 @@ def _sync_to_database_standalone(
 
             # Update device status in database
             result = session.execute(
-                text(
-                    "UPDATE devices SET status = :status, updated_at = :updated_at WHERE id = :device_id"
-                ),
+                text("UPDATE devices SET status = :status, updated_at = :updated_at WHERE id = :device_id"),
                 {
                     "status": db_status,
                     "updated_at": current_time,
@@ -256,9 +246,7 @@ def _sync_to_database_standalone(
                     f"Redis({old_status}→{new_status}) → DB({db_status})"
                 )
             else:
-                logger.warning(
-                    f"Device {device_id} not found in database for status sync"
-                )
+                logger.warning(f"Device {device_id} not found in database for status sync")
                 session.rollback()
 
         except Exception as db_error:

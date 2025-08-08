@@ -54,9 +54,7 @@ class Config:
     # MQTT Connection Settings
     MQTT_MAX_RETRIES = int(os.environ.get("MQTT_MAX_RETRIES", 5))
     MQTT_RETRY_DELAY = int(os.environ.get("MQTT_RETRY_DELAY", 5))
-    MQTT_AUTO_RECONNECT = (
-        os.environ.get("MQTT_AUTO_RECONNECT", "True").lower() == "true"
-    )
+    MQTT_AUTO_RECONNECT = os.environ.get("MQTT_AUTO_RECONNECT", "True").lower() == "true"
     MQTT_MAX_INFLIGHT_MESSAGES = int(os.environ.get("MQTT_MAX_INFLIGHT_MESSAGES", 20))
     MQTT_MESSAGE_RETRY_SET = int(os.environ.get("MQTT_MESSAGE_RETRY_SET", 20))
     MQTT_DEFAULT_QOS = int(os.environ.get("MQTT_DEFAULT_QOS", 1))

@@ -261,9 +261,7 @@ class MQTTTopicManager:
             formatted_path = structure.base_path.format(**kwargs)
             return f"{cls.BASE_TOPIC}/{formatted_path}"
         except KeyError as e:
-            raise ValueError(
-                f"Missing required parameter for topic '{topic_name}': {e}"
-            )
+            raise ValueError(f"Missing required parameter for topic '{topic_name}': {e}")
 
     @classmethod
     def get_topic_structure(cls, topic_name: str) -> TopicStructure:
@@ -278,9 +276,7 @@ class MQTTTopicManager:
         device_topics = {}
         for topic_name, structure in cls.TOPIC_STRUCTURES.items():
             if "{device_id}" in structure.base_path:
-                device_topics[topic_name] = cls.get_topic(
-                    topic_name, device_id=device_id
-                )
+                device_topics[topic_name] = cls.get_topic(topic_name, device_id=device_id)
         return device_topics
 
     @classmethod

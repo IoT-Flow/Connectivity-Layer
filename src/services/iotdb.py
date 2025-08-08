@@ -31,9 +31,7 @@ class IoTDBService:
             # Default to TEXT for complex types (will be JSON serialized)
             return TSDataType.TEXT
 
-    def _prepare_time_series(
-        self, device_path: str, data: Dict[str, Any], metadata: Dict[str, Any] = None
-    ):
+    def _prepare_time_series(self, device_path: str, data: Dict[str, Any], metadata: Dict[str, Any] = None):
         """Prepare time series paths and data types for IoTDB"""
         measurements = []
         data_types = []
@@ -104,26 +102,18 @@ class IoTDBService:
                 metadata["user_id"] = user_id
 
             # Prepare time series
-            measurements, data_types, values = self._prepare_time_series(
-                device_path, data, metadata
-            )
+            measurements, data_types, values = self._prepare_time_series(device_path, data, metadata)
 
-            logger.debug(
-                f"Prepared {len(measurements)} measurements for device {device_id} (user: {user_id})"
-            )
+            logger.debug(f"Prepared {len(measurements)} measurements for device {device_id} (user: {user_id})")
 
             # Create time series if they don't exist
             for i, measurement in enumerate(measurements):
                 try:
-                    self.session.create_time_series(
-                        measurement, data_types[i], TSEncoding.PLAIN, Compressor.SNAPPY
-                    )
+                    self.session.create_time_series(measurement, data_types[i], TSEncoding.PLAIN, Compressor.SNAPPY)
                     logger.debug(f"Created time series: {measurement}")
                 except Exception as e:
                     # Time series might already exist
-                    logger.debug(
-                        f"Time series creation (may already exist): {measurement} - {e}"
-                    )
+                    logger.debug(f"Time series creation (may already exist): {measurement} - {e}")
 
             # Insert data
             self.session.insert_str_record(
@@ -133,9 +123,7 @@ class IoTDBService:
                 [str(v) for v in values],  # Convert all values to strings
             )
 
-            logger.info(
-                f"Successfully wrote telemetry data for device {device_id} (user: {user_id})"
-            )
+            logger.info(f"Successfully wrote telemetry data for device {device_id} (user: {user_id})")
             return True
 
         except Exception as e:
@@ -153,9 +141,7 @@ class IoTDBService:
         """
         Query telemetry data from IoTDB with user-based organization
         """
-        logger.debug(
-            f"Querying telemetry data - device_id={device_id}, user_id={user_id}, limit={limit}"
-        )
+        logger.debug(f"Querying telemetry data - device_id={device_id}, user_id={user_id}, limit={limit}")
 
         if not self.is_available():
             logger.warning("IoTDB is not available")
@@ -179,29 +165,17 @@ class IoTDBService:
                         start_timestamp = int((now.timestamp() - hours * 3600) * 1000)
                     elif "d" in start_time:
                         days = int(start_time.replace("-", "").replace("d", ""))
-                        start_timestamp = int(
-                            (now.timestamp() - days * 24 * 3600) * 1000
-                        )
+                        start_timestamp = int((now.timestamp() - days * 24 * 3600) * 1000)
                     else:
-                        start_timestamp = int(
-                            (now.timestamp() - 3600) * 1000
-                        )  # Default 1 hour
+                        start_timestamp = int((now.timestamp() - 3600) * 1000)  # Default 1 hour
                     where_conditions.append(f"time >= {start_timestamp}")
                 else:
                     # Absolute time
-                    start_timestamp = int(
-                        datetime.fromisoformat(
-                            start_time.replace("Z", "+00:00")
-                        ).timestamp()
-                        * 1000
-                    )
+                    start_timestamp = int(datetime.fromisoformat(start_time.replace("Z", "+00:00")).timestamp() * 1000)
                     where_conditions.append(f"time >= {start_timestamp}")
 
             if end_time:
-                end_timestamp = int(
-                    datetime.fromisoformat(end_time.replace("Z", "+00:00")).timestamp()
-                    * 1000
-                )
+                end_timestamp = int(datetime.fromisoformat(end_time.replace("Z", "+00:00")).timestamp() * 1000)
                 where_conditions.append(f"time <= {end_timestamp}")
 
             if where_conditions:
@@ -224,21 +198,15 @@ class IoTDBService:
 
                 # Create result record
                 result_record = {
-                    "timestamp": datetime.fromtimestamp(
-                        record.get_timestamp() / 1000, tz=timezone.utc
-                    ).isoformat(),
+                    "timestamp": datetime.fromtimestamp(record.get_timestamp() / 1000, tz=timezone.utc).isoformat(),
                     "device_id": device_id,
                 }
 
                 # Add field values
                 fields = record.get_fields()
                 for i, column_name in enumerate(column_names):
-                    if (
-                        column_name != "Time"
-                    ):  # Skip time column as we handle it separately
-                        field_name = column_name.split(".")[
-                            -1
-                        ]  # Extract field name from full path
+                    if column_name != "Time":  # Skip time column as we handle it separately
+                        field_name = column_name.split(".")[-1]  # Extract field name from full path
                         field_index = i - 1  # -1 because Time is first column
 
                         if field_index < len(fields):
@@ -260,14 +228,9 @@ class IoTDBService:
                                     field_value = str(field_value)
 
                             # Handle NaN and special types
-                            if (
-                                str(type(field_value).__name__) == "NAType"
-                                or field_value is None
-                            ):
+                            if str(type(field_value).__name__) == "NAType" or field_value is None:
                                 field_value = None
-                            elif (
-                                hasattr(field_value, "is_nan") and field_value.is_nan()
-                            ):
+                            elif hasattr(field_value, "is_nan") and field_value.is_nan():
                                 field_value = None
                             elif str(field_value) == "nan":
                                 field_value = None
@@ -285,9 +248,7 @@ class IoTDBService:
 
             session_data_set.close_operation_handle()
 
-            logger.info(
-                f"Retrieved {len(results)} telemetry records for device {device_id}"
-            )
+            logger.info(f"Retrieved {len(results)} telemetry records for device {device_id}")
             return results
 
         except Exception as e:
@@ -319,9 +280,7 @@ class IoTDBService:
                         start_timestamp = int((now.timestamp() - hours * 3600) * 1000)
                     elif "d" in start_time:
                         days = int(start_time.replace("-", "").replace("d", ""))
-                        start_timestamp = int(
-                            (now.timestamp() - days * 24 * 3600) * 1000
-                        )
+                        start_timestamp = int((now.timestamp() - days * 24 * 3600) * 1000)
                     else:
                         start_timestamp = int((now.timestamp() - 3600) * 1000)
                     query += f" WHERE time >= {start_timestamp}"
@@ -353,9 +312,7 @@ class IoTDBService:
             logger.error(f"Error getting telemetry count from IoTDB: {str(e)}")
             return 0
 
-    def delete_device_data(
-        self, device_id: str, start_time: str = None, end_time: str = None
-    ) -> bool:
+    def delete_device_data(self, device_id: str, start_time: str = None, end_time: str = None) -> bool:
         """
         Delete telemetry data for a device
         """
@@ -371,31 +328,19 @@ class IoTDBService:
             # Build delete query
             time_conditions = []
             if start_time:
-                start_timestamp = int(
-                    datetime.fromisoformat(
-                        start_time.replace("Z", "+00:00")
-                    ).timestamp()
-                    * 1000
-                )
+                start_timestamp = int(datetime.fromisoformat(start_time.replace("Z", "+00:00")).timestamp() * 1000)
                 time_conditions.append(str(start_timestamp))
             else:
                 time_conditions.append("0")  # From beginning
 
             if end_time:
-                end_timestamp = int(
-                    datetime.fromisoformat(end_time.replace("Z", "+00:00")).timestamp()
-                    * 1000
-                )
+                end_timestamp = int(datetime.fromisoformat(end_time.replace("Z", "+00:00")).timestamp() * 1000)
                 time_conditions.append(str(end_timestamp))
             else:
-                time_conditions.append(
-                    str(int(datetime.now(timezone.utc).timestamp() * 1000))
-                )  # Until now
+                time_conditions.append(str(int(datetime.now(timezone.utc).timestamp() * 1000)))  # Until now
 
             # Delete data
-            self.session.delete_data(
-                [f"{device_path}.*"], time_conditions[0], time_conditions[1]
-            )
+            self.session.delete_data([f"{device_path}.*"], time_conditions[0], time_conditions[1])
 
             logger.info(f"Successfully deleted telemetry data for device {device_id}")
             return True
@@ -437,21 +382,15 @@ class IoTDBService:
 
                 # Create result record
                 result = {
-                    "timestamp": datetime.fromtimestamp(
-                        record.get_timestamp() / 1000, tz=timezone.utc
-                    ).isoformat(),
+                    "timestamp": datetime.fromtimestamp(record.get_timestamp() / 1000, tz=timezone.utc).isoformat(),
                     "device_id": device_id,
                 }
 
                 # Add field values
                 fields = record.get_fields()
                 for i, column_name in enumerate(column_names):
-                    if (
-                        column_name != "Time"
-                    ):  # Skip time column as we handle it separately
-                        field_name = column_name.split(".")[
-                            -1
-                        ]  # Extract field name from full path
+                    if column_name != "Time":  # Skip time column as we handle it separately
+                        field_name = column_name.split(".")[-1]  # Extract field name from full path
                         field_index = i - 1  # -1 because Time is first column
 
                         if field_index < len(fields):
@@ -473,14 +412,9 @@ class IoTDBService:
                                     field_value = str(field_value)
 
                             # Handle NaN and special types
-                            if (
-                                str(type(field_value).__name__) == "NAType"
-                                or field_value is None
-                            ):
+                            if str(type(field_value).__name__) == "NAType" or field_value is None:
                                 field_value = None
-                            elif (
-                                hasattr(field_value, "is_nan") and field_value.is_nan()
-                            ):
+                            elif hasattr(field_value, "is_nan") and field_value.is_nan():
                                 field_value = None
                             elif str(field_value) == "nan":
                                 field_value = None
@@ -536,29 +470,17 @@ class IoTDBService:
                         start_timestamp = int((now.timestamp() - hours * 3600) * 1000)
                     elif "d" in start_time:
                         days = int(start_time.replace("-", "").replace("d", ""))
-                        start_timestamp = int(
-                            (now.timestamp() - days * 24 * 3600) * 1000
-                        )
+                        start_timestamp = int((now.timestamp() - days * 24 * 3600) * 1000)
                     else:
-                        start_timestamp = int(
-                            (now.timestamp() - 3600) * 1000
-                        )  # Default 1 hour
+                        start_timestamp = int((now.timestamp() - 3600) * 1000)  # Default 1 hour
                     where_conditions.append(f"time >= {start_timestamp}")
                 else:
                     # Absolute time
-                    start_timestamp = int(
-                        datetime.fromisoformat(
-                            start_time.replace("Z", "+00:00")
-                        ).timestamp()
-                        * 1000
-                    )
+                    start_timestamp = int(datetime.fromisoformat(start_time.replace("Z", "+00:00")).timestamp() * 1000)
                     where_conditions.append(f"time >= {start_timestamp}")
 
             if end_time:
-                end_timestamp = int(
-                    datetime.fromisoformat(end_time.replace("Z", "+00:00")).timestamp()
-                    * 1000
-                )
+                end_timestamp = int(datetime.fromisoformat(end_time.replace("Z", "+00:00")).timestamp() * 1000)
                 where_conditions.append(f"time <= {end_timestamp}")
 
             if where_conditions:
@@ -581,9 +503,7 @@ class IoTDBService:
 
                 # Create result record
                 result_record = {
-                    "timestamp": datetime.fromtimestamp(
-                        record.get_timestamp() / 1000, tz=timezone.utc
-                    ).isoformat(),
+                    "timestamp": datetime.fromtimestamp(record.get_timestamp() / 1000, tz=timezone.utc).isoformat(),
                     "user_id": user_id,
                 }
 
@@ -606,9 +526,7 @@ class IoTDBService:
                 fields = record.get_fields()
                 for i, column_name in enumerate(column_names):
                     if column_name != "Time":  # Skip time column
-                        field_name = column_name.split(".")[
-                            -1
-                        ]  # Extract field name from full path
+                        field_name = column_name.split(".")[-1]  # Extract field name from full path
                         field_index = i - 1  # -1 because Time is first column
 
                         if field_index < len(fields):
@@ -630,14 +548,9 @@ class IoTDBService:
                                     field_value = str(field_value)
 
                             # Handle NaN and special types
-                            if (
-                                str(type(field_value).__name__) == "NAType"
-                                or field_value is None
-                            ):
+                            if str(type(field_value).__name__) == "NAType" or field_value is None:
                                 field_value = None
-                            elif (
-                                hasattr(field_value, "is_nan") and field_value.is_nan()
-                            ):
+                            elif hasattr(field_value, "is_nan") and field_value.is_nan():
                                 field_value = None
                             elif str(field_value) == "nan":
                                 field_value = None
@@ -655,9 +568,7 @@ class IoTDBService:
 
             session_data_set.close_operation_handle()
 
-            logger.info(
-                f"Retrieved {len(results)} telemetry records for user {user_id}"
-            )
+            logger.info(f"Retrieved {len(results)} telemetry records for user {user_id}")
             return results
 
         except Exception as e:
@@ -689,9 +600,7 @@ class IoTDBService:
                         start_timestamp = int((now.timestamp() - hours * 3600) * 1000)
                     elif "d" in start_time:
                         days = int(start_time.replace("-", "").replace("d", ""))
-                        start_timestamp = int(
-                            (now.timestamp() - days * 24 * 3600) * 1000
-                        )
+                        start_timestamp = int((now.timestamp() - days * 24 * 3600) * 1000)
                     else:
                         start_timestamp = int((now.timestamp() - 3600) * 1000)
                     query += f" WHERE time >= {start_timestamp}"

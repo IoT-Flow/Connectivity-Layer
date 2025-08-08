@@ -25,9 +25,7 @@ def list_all_devices():
             # Hide API key in admin listing for security
             device_dict.pop("api_key", None)
             # Add basic stats
-            device_dict["auth_records_count"] = DeviceAuth.query.filter_by(
-                device_id=device.id
-            ).count()
+            device_dict["auth_records_count"] = DeviceAuth.query.filter_by(device_id=device.id).count()
             device_dict["config_count"] = DeviceConfiguration.query.filter_by(
                 device_id=device.id, is_active=True
             ).count()
@@ -79,17 +77,13 @@ def get_device_details(device_id):
             auth_list.append(auth_dict)
 
         # Get device configurations
-        configs = DeviceConfiguration.query.filter_by(
-            device_id=device_id, is_active=True
-        ).all()
+        configs = DeviceConfiguration.query.filter_by(device_id=device_id, is_active=True).all()
         config_dict = {}
         for config in configs:
             config_dict[config.config_key] = {
                 "value": config.config_value,
                 "data_type": config.data_type,
-                "updated_at": (
-                    config.updated_at.isoformat() if config.updated_at else None
-                ),
+                "updated_at": (config.updated_at.isoformat() if config.updated_at else None),
             }
 
         device_dict = device.to_dict()
@@ -131,9 +125,7 @@ def update_device_status(device_id):
 
         if not data or "status" not in data:
             return (
-                jsonify(
-                    {"error": "Missing status", "message": "Status field is required"}
-                ),
+                jsonify({"error": "Missing status", "message": "Status field is required"}),
                 400,
             )
 
@@ -155,9 +147,7 @@ def update_device_status(device_id):
 
         db.session.commit()
 
-        current_app.logger.info(
-            f"Device {device.name} status changed from {old_status} to {new_status}"
-        )
+        current_app.logger.info(f"Device {device.name} status changed from {old_status} to {new_status}")
 
         return (
             jsonify(
@@ -199,9 +189,7 @@ def get_system_stats():
 
         # Online/offline statistics (devices seen in last 5 minutes)
         five_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
-        online_devices = Device.query.filter(
-            Device.last_seen >= five_minutes_ago, Device.status == "active"
-        ).count()
+        online_devices = Device.query.filter(Device.last_seen >= five_minutes_ago, Device.status == "active").count()
 
         # Auth statistics
         total_auth_records = DeviceAuth.query.count()
@@ -297,10 +285,7 @@ def clear_device_status_cache():
     """Clear all device status cache data from Redis"""
     try:
         # Check if Redis cache is available
-        if (
-            not hasattr(current_app, "device_status_cache")
-            or not current_app.device_status_cache
-        ):
+        if not hasattr(current_app, "device_status_cache") or not current_app.device_status_cache:
             return (
                 jsonify(
                     {
@@ -367,10 +352,7 @@ def clear_device_cache(device_id):
             )
 
         # Check if Redis cache is available
-        if (
-            not hasattr(current_app, "device_status_cache")
-            or not current_app.device_status_cache
-        ):
+        if not hasattr(current_app, "device_status_cache") or not current_app.device_status_cache:
             return (
                 jsonify(
                     {
@@ -424,10 +406,7 @@ def get_cache_stats():
     """Get statistics about the device status cache"""
     try:
         # Check if Redis cache is available
-        if (
-            not hasattr(current_app, "device_status_cache")
-            or not current_app.device_status_cache
-        ):
+        if not hasattr(current_app, "device_status_cache") or not current_app.device_status_cache:
             return (
                 jsonify(
                     {
@@ -441,9 +420,7 @@ def get_cache_stats():
         # Check if Redis client is available
         if not current_app.device_status_cache.available:
             return (
-                jsonify(
-                    {"status": "error", "message": "Redis connection is not available"}
-                ),
+                jsonify({"status": "error", "message": "Redis connection is not available"}),
                 503,
             )
 
@@ -464,9 +441,7 @@ def get_cache_stats():
                     "cache_stats": {
                         "device_status_count": len(status_keys),
                         "device_lastseen_count": len(lastseen_keys),
-                        "redis_memory_used": redis_info.get(
-                            "used_memory_human", "unknown"
-                        ),
+                        "redis_memory_used": redis_info.get("used_memory_human", "unknown"),
                         "redis_uptime": redis_info.get("uptime_in_seconds", 0),
                         "redis_version": redis_info.get("redis_version", "unknown"),
                     },
@@ -496,10 +471,7 @@ def get_cache_stats():
 def get_redis_db_sync_status():
     """Get Redis-to-Database synchronization status"""
     try:
-        if (
-            not hasattr(current_app, "device_status_cache")
-            or not current_app.device_status_cache
-        ):
+        if not hasattr(current_app, "device_status_cache") or not current_app.device_status_cache:
             return (
                 jsonify(
                     {
@@ -536,10 +508,7 @@ def get_redis_db_sync_status():
 def enable_redis_db_sync():
     """Enable Redis-to-Database synchronization"""
     try:
-        if (
-            not hasattr(current_app, "device_status_cache")
-            or not current_app.device_status_cache
-        ):
+        if not hasattr(current_app, "device_status_cache") or not current_app.device_status_cache:
             return (
                 jsonify(
                     {
@@ -573,10 +542,7 @@ def enable_redis_db_sync():
 def disable_redis_db_sync():
     """Disable Redis-to-Database synchronization"""
     try:
-        if (
-            not hasattr(current_app, "device_status_cache")
-            or not current_app.device_status_cache
-        ):
+        if not hasattr(current_app, "device_status_cache") or not current_app.device_status_cache:
             return (
                 jsonify(
                     {
@@ -610,10 +576,7 @@ def disable_redis_db_sync():
 def force_sync_device_to_db(device_id):
     """Force synchronization of a specific device status to database"""
     try:
-        if (
-            not hasattr(current_app, "device_status_cache")
-            or not current_app.device_status_cache
-        ):
+        if not hasattr(current_app, "device_status_cache") or not current_app.device_status_cache:
             return (
                 jsonify(
                     {
@@ -682,10 +645,7 @@ def force_sync_device_to_db(device_id):
 def bulk_sync_devices_to_db():
     """Force synchronization of all devices with Redis status to database"""
     try:
-        if (
-            not hasattr(current_app, "device_status_cache")
-            or not current_app.device_status_cache
-        ):
+        if not hasattr(current_app, "device_status_cache") or not current_app.device_status_cache:
             return (
                 jsonify(
                     {

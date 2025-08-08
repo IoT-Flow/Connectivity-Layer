@@ -18,9 +18,7 @@ class StatusSyncService:
     Runs as a background thread to ensure data consistency
     """
 
-    def __init__(
-        self, redis_client: Optional[redis.Redis] = None, sync_interval: int = 30
-    ):
+    def __init__(self, redis_client: Optional[redis.Redis] = None, sync_interval: int = 30):
         """
         Initialize the status sync service
 

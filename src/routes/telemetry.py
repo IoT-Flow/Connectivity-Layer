@@ -55,16 +55,12 @@ def store_telemetry():
             try:
                 # Handle different timestamp formats
                 if timestamp_str.endswith("Z"):
-                    timestamp = datetime.fromisoformat(
-                        timestamp_str.replace("Z", "+00:00")
-                    )
+                    timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
                 else:
                     timestamp = datetime.fromisoformat(timestamp_str)
             except ValueError:
                 return (
-                    jsonify(
-                        {"error": "Invalid timestamp format. Use ISO 8601 format."}
-                    ),
+                    jsonify({"error": "Invalid timestamp format. Use ISO 8601 format."}),
                     400,
                 )
 
@@ -82,9 +78,7 @@ def store_telemetry():
             # Update device last_seen
             device.update_last_seen()
 
-            current_app.logger.info(
-                f"Telemetry stored for device {device.name} (ID: {device.id})"
-            )
+            current_app.logger.info(f"Telemetry stored for device {device.name} (ID: {device.id})")
 
             return (
                 jsonify(
@@ -92,11 +86,7 @@ def store_telemetry():
                         "message": "Telemetry data stored successfully",
                         "device_id": device.id,
                         "device_name": device.name,
-                        "timestamp": (
-                            timestamp.isoformat()
-                            if timestamp
-                            else datetime.now(timezone.utc).isoformat()
-                        ),
+                        "timestamp": (timestamp.isoformat() if timestamp else datetime.now(timezone.utc).isoformat()),
                     }
                 ),
                 201,
@@ -256,22 +246,16 @@ def delete_device_telemetry(device_id):
         data = request.get_json()
         if not data:
             return (
-                jsonify(
-                    {"error": "Request body required with start_time and stop_time"}
-                ),
+                jsonify({"error": "Request body required with start_time and stop_time"}),
                 400,
             )
         start_time = data.get("start_time")
         stop_time = data.get("stop_time")
         if not start_time or not stop_time:
             return jsonify({"error": "start_time and stop_time are required"}), 400
-        success = iotdb_service.delete_device_data(
-            device_id=str(device_id), start_time=start_time, stop_time=stop_time
-        )
+        success = iotdb_service.delete_device_data(device_id=str(device_id), start_time=start_time, stop_time=stop_time)
         if success:
-            current_app.logger.info(
-                f"Telemetry data deleted for device {device.name} (ID: {device_id})"
-            )
+            current_app.logger.info(f"Telemetry data deleted for device {device.name} (ID: {device_id})")
             return (
                 jsonify(
                     {
@@ -361,14 +345,10 @@ def get_user_telemetry(user_id):
             )
 
             # Get telemetry count for the user
-            telemetry_count = iotdb_service.get_user_telemetry_count(
-                user_id=str(user_id), start_time=start_time
-            )
+            telemetry_count = iotdb_service.get_user_telemetry_count(user_id=str(user_id), start_time=start_time)
 
         except Exception as e:
-            current_app.logger.error(
-                f"Error querying user telemetry from IoTDB: {str(e)}"
-            )
+            current_app.logger.error(f"Error querying user telemetry from IoTDB: {str(e)}")
             telemetry_data = []
             telemetry_count = 0
 

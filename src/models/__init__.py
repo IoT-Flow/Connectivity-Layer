@@ -24,17 +24,13 @@ class User(db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(
-        db.String(32), unique=True, nullable=False, default=generate_user_id
-    )
+    user_id = db.Column(db.String(32), unique=True, nullable=False, default=generate_user_id)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)
-    created_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -83,18 +79,12 @@ class Device(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     device_type = db.Column(db.String(50), nullable=False, default="sensor")
-    api_key = db.Column(
-        db.String(64), unique=True, nullable=False, default=generate_api_key
-    )
-    status = db.Column(
-        db.String(20), nullable=False, default="active"
-    )  # active, inactive, maintenance
+    api_key = db.Column(db.String(64), unique=True, nullable=False, default=generate_api_key)
+    status = db.Column(db.String(20), nullable=False, default="active")  # active, inactive, maintenance
     location = db.Column(db.String(200))
     firmware_version = db.Column(db.String(20))
     hardware_version = db.Column(db.String(20))
-    created_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -106,9 +96,7 @@ class Device(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     # Relationships
-    auth_records = db.relationship(
-        "DeviceAuth", backref="device", lazy="dynamic", cascade="all, delete-orphan"
-    )
+    auth_records = db.relationship("DeviceAuth", backref="device", lazy="dynamic", cascade="all, delete-orphan")
     configurations = db.relationship(
         "DeviceConfiguration",
         backref="device",
@@ -144,10 +132,7 @@ class Device(db.Model):
         # Also update Redis cache if available
         from flask import current_app
 
-        if (
-            hasattr(current_app, "device_status_cache")
-            and current_app.device_status_cache
-        ):
+        if hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
             current_app.device_status_cache.update_device_last_seen(self.id)
             current_app.device_status_cache.set_device_status(self.id, "online")
 
@@ -159,10 +144,7 @@ class Device(db.Model):
         # Also update Redis cache if available
         from flask import current_app
 
-        if (
-            hasattr(current_app, "device_status_cache")
-            and current_app.device_status_cache
-        ):
+        if hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
             current_app.device_status_cache.set_device_status(self.id, status)
 
     def get_status(self):
@@ -170,10 +152,7 @@ class Device(db.Model):
         from flask import current_app
 
         # Try to get from Redis cache first
-        if (
-            hasattr(current_app, "device_status_cache")
-            and current_app.device_status_cache
-        ):
+        if hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
             redis_status = current_app.device_status_cache.get_device_status(self.id)
             if redis_status:
                 return redis_status
@@ -210,14 +189,10 @@ class DeviceAuth(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
-    api_key_hash = db.Column(
-        db.String(128), nullable=False
-    )  # Hashed version of API key
+    api_key_hash = db.Column(db.String(128), nullable=False)  # Hashed version of API key
     is_active = db.Column(db.Boolean, default=True)
     expires_at = db.Column(db.DateTime(timezone=True))  # Optional expiration
-    created_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     last_used = db.Column(db.DateTime(timezone=True))
     usage_count = db.Column(db.Integer, default=0)
 
@@ -246,13 +221,9 @@ class DeviceConfiguration(db.Model):
     device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
     config_key = db.Column(db.String(100), nullable=False)
     config_value = db.Column(db.Text)
-    data_type = db.Column(
-        db.String(20), default="string"
-    )  # string, integer, float, boolean, json
+    data_type = db.Column(db.String(20), default="string")  # string, integer, float, boolean, json
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -285,9 +256,7 @@ class Chart(db.Model):
     aggregation = db.Column(db.String(20), default="none")
     group_by = db.Column(db.String(50), default="device")
     appearance_config = db.Column(db.JSON)
-    created_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -296,9 +265,7 @@ class Chart(db.Model):
     is_active = db.Column(db.Boolean, default=True)
 
     # Relationships
-    devices = db.relationship(
-        "ChartDevice", backref="chart", lazy="dynamic", cascade="all, delete-orphan"
-    )
+    devices = db.relationship("ChartDevice", backref="chart", lazy="dynamic", cascade="all, delete-orphan")
     measurements = db.relationship(
         "ChartMeasurement",
         backref="chart",
@@ -319,15 +286,9 @@ class ChartDevice(db.Model):
     __tablename__ = "chart_devices"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    chart_id = db.Column(
-        db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False
-    )
-    device_id = db.Column(
-        db.Integer, db.ForeignKey("devices.id", ondelete="CASCADE"), nullable=False
-    )
-    created_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    chart_id = db.Column(db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False)
+    device_id = db.Column(db.Integer, db.ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         db.UniqueConstraint("chart_id", "device_id", name="unique_chart_device"),
@@ -342,20 +303,14 @@ class ChartMeasurement(db.Model):
     __tablename__ = "chart_measurements"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    chart_id = db.Column(
-        db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False
-    )
+    chart_id = db.Column(db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False)
     measurement_name = db.Column(db.String(255), nullable=False)
     display_name = db.Column(db.String(255))
     color = db.Column(db.String(7))
-    created_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
-        db.UniqueConstraint(
-            "chart_id", "measurement_name", name="unique_chart_measurement"
-        ),
+        db.UniqueConstraint("chart_id", "measurement_name", name="unique_chart_measurement"),
         db.Index("idx_chart_measurements", "chart_id"),
         db.Index("idx_measurement_name", "measurement_name"),
     )
@@ -363,4 +318,5 @@ class ChartMeasurement(db.Model):
 
 # Create the DeviceControl model after all other models are defined
 from src.models.device_control import create_device_control_model  # noqa: E402
+
 DeviceControl = create_device_control_model(db)

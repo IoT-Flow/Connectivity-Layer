@@ -8,13 +8,9 @@ def create_device_control_model(db):
         device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
         command = db.Column(db.String(128), nullable=False)
         parameters = db.Column(db.JSON, nullable=True)
-        status = db.Column(
-            db.String(32), default="pending"
-        )  # pending, sent, acknowledged, failed
+        status = db.Column(db.String(32), default="pending")  # pending, sent, acknowledged, failed
         created_at = db.Column(db.DateTime, default=datetime.utcnow)
-        updated_at = db.Column(
-            db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
-        )
+        updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
         device = db.relationship("Device", backref="controls")
 

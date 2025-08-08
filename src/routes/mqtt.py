@@ -28,9 +28,7 @@ def get_mqtt_status():
 
         if not mqtt_service:
             return (
-                jsonify(
-                    {"error": "MQTT service not initialized", "status": "unavailable"}
-                ),
+                jsonify({"error": "MQTT service not initialized", "status": "unavailable"}),
                 503,
             )
 
@@ -252,9 +250,7 @@ def validate_topic():
 
             # Check specific validation issues
             if not topic.startswith(f"{MQTTTopicManager.BASE_TOPIC}/"):
-                response["validation_errors"].append(
-                    f"Topic must start with '{MQTTTopicManager.BASE_TOPIC}/'"
-                )
+                response["validation_errors"].append(f"Topic must start with '{MQTTTopicManager.BASE_TOPIC}/'")
 
             if len(topic.encode("utf-8")) > 65535:
                 response["validation_errors"].append("Topic too long (max 65535 bytes)")
@@ -292,11 +288,7 @@ def send_device_command(device_id: str):
         valid_command_types = ["config", "control", "firmware"]
         if command_type not in valid_command_types:
             return (
-                jsonify(
-                    {
-                        "error": f"Invalid command type. Must be one of: {valid_command_types}"
-                    }
-                ),
+                jsonify({"error": f"Invalid command type. Must be one of: {valid_command_types}"}),
                 400,
             )
 
@@ -401,9 +393,7 @@ def send_fleet_command(group_id: str):
             )
         else:
             return (
-                jsonify(
-                    {"error": "Failed to send fleet command", "group_id": group_id}
-                ),
+                jsonify({"error": "Failed to send fleet command", "group_id": group_id}),
                 500,
             )
 

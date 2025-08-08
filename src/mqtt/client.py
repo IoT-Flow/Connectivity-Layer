@@ -73,9 +73,7 @@ class MQTTMessage:
             "payload": self.payload,
             "qos": self.qos,
             "retain": self.retain,
-            "timestamp": (
-                format_timestamp_for_storage(self.timestamp) if self.timestamp else None
-            ),
+            "timestamp": (format_timestamp_for_storage(self.timestamp) if self.timestamp else None),
         }
 
 
@@ -139,11 +137,7 @@ class TelemetryMessageHandler(MQTTMessageHandler):
             return False
 
         # Check the first parts match our pattern
-        if (
-            topic_parts[0] == "iotflow"
-            and topic_parts[1] == "devices"
-            and topic_parts[3] == "telemetry"
-        ):
+        if topic_parts[0] == "iotflow" and topic_parts[1] == "devices" and topic_parts[3] == "telemetry":
             return True
 
         return False
@@ -183,9 +177,7 @@ class TelemetryMessageHandler(MQTTMessageHandler):
                 try:
                     payload_data = json.loads(message.payload)
                 except json.JSONDecodeError:
-                    self.logger.error(
-                        "Invalid JSON payload in telemetry message: %s", message.payload
-                    )
+                    self.logger.error("Invalid JSON payload in telemetry message: %s", message.payload)
                     return
             else:
                 payload_data = message.payload
@@ -193,9 +185,7 @@ class TelemetryMessageHandler(MQTTMessageHandler):
             # Extract API key from payload
             api_key = payload_data.get("api_key")
             if not api_key:
-                self.logger.warning(
-                    "Missing API key in telemetry payload for device %d", device_id
-                )
+                self.logger.warning("Missing API key in telemetry payload for device %d", device_id)
                 return
 
             # Check if authentication service is available and authenticate
@@ -242,9 +232,7 @@ class TelemetryMessageHandler(MQTTMessageHandler):
                 except Exception as e:
                     self.logger.error("Error in telemetry callback: %s", str(e))
 
-            self.logger.debug(
-                "Processed authenticated telemetry from device %d", device_id
-            )
+            self.logger.debug("Processed authenticated telemetry from device %d", device_id)
 
         except Exception as e:
             self.logger.error("Error processing telemetry message: %s", str(e))
@@ -297,9 +285,7 @@ class CommandMessageHandler(MQTTMessageHandler):
                 except Exception as e:
                     self.logger.error(f"Error in command callback: {e}")
 
-            self.logger.info(
-                f"Processed command for device {device_id}: {command_type}"
-            )
+            self.logger.info(f"Processed command for device {device_id}: {command_type}")
 
         except Exception as e:
             self.logger.error(f"Error processing command message: {e}")
@@ -353,11 +339,7 @@ class StatusMessageHandler(MQTTMessageHandler):
             # Special handling for online/offline status
             if status_type in ["online", "offline", "connectivity"]:
                 # Update device status in Redis cache if app is available
-                if (
-                    self.app
-                    and hasattr(self.app, "device_status_cache")
-                    and self.app.device_status_cache
-                ):
+                if self.app and hasattr(self.app, "device_status_cache") and self.app.device_status_cache:
                     # Try to determine online/offline status
                     device_status = None
 
@@ -368,35 +350,21 @@ class StatusMessageHandler(MQTTMessageHandler):
                     elif status_type in ["online", "offline"]:
                         device_status = status_type
                     # If it's a connectivity message with a connection state
-                    elif (
-                        status_type == "connectivity"
-                        and isinstance(status_data, dict)
-                        and "connected" in status_data
-                    ):
-                        device_status = (
-                            "online" if status_data["connected"] else "offline"
-                        )
+                    elif status_type == "connectivity" and isinstance(status_data, dict) and "connected" in status_data:
+                        device_status = "online" if status_data["connected"] else "offline"
 
                     # Update Redis cache if we have a status
                     if device_status and device_id:
                         try:
                             device_id_int = int(device_id)
-                            self.app.device_status_cache.set_device_status(
-                                device_id_int, device_status
-                            )
-                            self.logger.info(
-                                f"Updated device {device_id} status in cache: {device_status}"
-                            )
+                            self.app.device_status_cache.set_device_status(device_id_int, device_status)
+                            self.logger.info(f"Updated device {device_id} status in cache: {device_status}")
 
                             # Also update last seen for online devices
                             if device_status == "online":
-                                self.app.device_status_cache.update_device_last_seen(
-                                    device_id_int
-                                )
+                                self.app.device_status_cache.update_device_last_seen(device_id_int)
                         except (ValueError, TypeError) as e:
-                            self.logger.error(
-                                f"Error parsing device_id for Redis cache: {e}"
-                            )
+                            self.logger.error(f"Error parsing device_id for Redis cache: {e}")
 
             # Call registered callbacks
             for callback in self.status_callbacks:
@@ -405,9 +373,7 @@ class StatusMessageHandler(MQTTMessageHandler):
                 except Exception as e:
                     self.logger.error(f"Error in status callback: {e}")
 
-            self.logger.debug(
-                f"Processed status from device {device_id}: {status_type}"
-            )
+            self.logger.debug(f"Processed status from device {device_id}: {status_type}")
 
         except Exception as e:
             self.logger.error(f"Error processing status message: {e}")
@@ -419,9 +385,7 @@ class MQTTClientService:
     Handles connections, subscriptions, and message routing
     """
 
-    def __init__(
-        self, config: MQTTConfig, auth_service: MQTTAuthService = None, app=None
-    ):
+    def __init__(self, config: MQTTConfig, auth_service: MQTTAuthService = None, app=None):
         self.config = config
         self.client = None
         self.connected = False
@@ -444,12 +408,8 @@ class MQTTClientService:
         if app:
             self.status_handler.set_app(app)
 
-        self.logger.info(
-            f"Initializing MQTT client with telemetry handler: {self.telemetry_handler}"
-        )
-        self.logger.info(
-            f"Telemetry handler topic pattern: {self.telemetry_handler.topic_pattern}"
-        )
+        self.logger.info(f"Initializing MQTT client with telemetry handler: {self.telemetry_handler}")
+        self.logger.info(f"Telemetry handler topic pattern: {self.telemetry_handler.topic_pattern}")
         self.logger.info(f"Auth service: {self.auth_service}")
 
         self.add_message_handler(self.telemetry_handler)
@@ -477,9 +437,7 @@ class MQTTClientService:
     def _setup_client(self):
         """Setup MQTT client with configuration"""
         client_id = self.config.client_id or f"iotflow_server_{int(time.time())}"
-        self.client = mqtt.Client(
-            client_id=client_id, clean_session=self.config.clean_session
-        )
+        self.client = mqtt.Client(client_id=client_id, clean_session=self.config.clean_session)
 
         # Set credentials if provided
         if self.config.username and self.config.password:
@@ -509,9 +467,7 @@ class MQTTClientService:
             context.load_verify_locations(self.config.ca_cert_path)
 
         if self.config.cert_file_path and self.config.key_file_path:
-            context.load_cert_chain(
-                self.config.cert_file_path, self.config.key_file_path
-            )
+            context.load_cert_chain(self.config.cert_file_path, self.config.key_file_path)
 
         if self.config.tls_insecure:
             context.check_hostname = False
@@ -549,9 +505,7 @@ class MQTTClientService:
                     self.logger.error("MQTT connection timeout")
                     return False
             else:
-                self.logger.error(
-                    f"Failed to connect to MQTT broker: {mqtt.error_string(result)}"
-                )
+                self.logger.error(f"Failed to connect to MQTT broker: {mqtt.error_string(result)}")
                 return False
 
         except Exception as e:
@@ -569,9 +523,7 @@ class MQTTClientService:
         except Exception as e:
             self.logger.error(f"Error disconnecting from MQTT broker: {e}")
 
-    def publish(
-        self, topic: str, payload: Any, qos: int = None, retain: bool = False
-    ) -> bool:
+    def publish(self, topic: str, payload: Any, qos: int = None, retain: bool = False) -> bool:
         """
         Publish a message to MQTT broker
 
@@ -603,9 +555,7 @@ class MQTTClientService:
                 self.logger.debug(f"Published to {topic}: {payload}")
                 return True
             else:
-                self.logger.error(
-                    f"Failed to publish to {topic}: {mqtt.error_string(result.rc)}"
-                )
+                self.logger.error(f"Failed to publish to {topic}: {mqtt.error_string(result.rc)}")
                 return False
 
         except Exception as e:
@@ -644,9 +594,7 @@ class MQTTClientService:
 
                 return True
             else:
-                self.logger.error(
-                    f"Failed to subscribe to {topic}: {mqtt.error_string(result[0])}"
-                )
+                self.logger.error(f"Failed to subscribe to {topic}: {mqtt.error_string(result[0])}")
                 return False
 
         except Exception as e:
@@ -688,14 +636,10 @@ class MQTTClientService:
                 topic_pattern = patterns[topic_name]
                 self.logger.info(f"Subscribing to {topic_name}: {topic_pattern}")
                 if not self.subscribe(topic_pattern):
-                    self.logger.error(
-                        f"Failed to subscribe to {topic_name}: {topic_pattern}"
-                    )
+                    self.logger.error(f"Failed to subscribe to {topic_name}: {topic_pattern}")
                     success = False
                 else:
-                    self.logger.info(
-                        f"Successfully subscribed to {topic_name}: {topic_pattern}"
-                    )
+                    self.logger.info(f"Successfully subscribed to {topic_name}: {topic_pattern}")
             else:
                 self.logger.warning(f"Topic pattern not found: {topic_name}")
 
@@ -716,17 +660,13 @@ class MQTTClientService:
                 self.logger.warning("Failed to subscribe to some system topics")
 
         else:
-            self.logger.error(
-                f"Failed to connect to MQTT broker: {mqtt.connack_string(rc)}"
-            )
+            self.logger.error(f"Failed to connect to MQTT broker: {mqtt.connack_string(rc)}")
 
     def _on_disconnect(self, client, userdata, rc):
         """Callback for disconnection"""
         self.connected = False
         if rc != 0:
-            self.logger.warning(
-                f"Unexpected disconnection from MQTT broker: {mqtt.error_string(rc)}"
-            )
+            self.logger.warning(f"Unexpected disconnection from MQTT broker: {mqtt.error_string(rc)}")
 
             # Attempt reconnection if enabled
             if self.config.auto_reconnect:
@@ -740,18 +680,12 @@ class MQTTClientService:
             # Create MQTT message object
             message = MQTTMessage(
                 topic=msg.topic,
-                payload=(
-                    msg.payload.decode("utf-8")
-                    if isinstance(msg.payload, bytes)
-                    else msg.payload
-                ),
+                payload=(msg.payload.decode("utf-8") if isinstance(msg.payload, bytes) else msg.payload),
                 qos=msg.qos,
                 retain=msg.retain,
             )
 
-            self.logger.info(
-                f"MQTT message received on topic: {message.topic}, payload: {message.payload}"
-            )
+            self.logger.info(f"MQTT message received on topic: {message.topic}, payload: {message.payload}")
 
             # Route message to appropriate handlers
             eligible_handlers = []
@@ -764,9 +698,7 @@ class MQTTClientService:
             # Log the matching handlers
             if eligible_handlers:
                 handler_names = [h.__class__.__name__ for h in eligible_handlers]
-                self.logger.debug(
-                    f"Topic {message.topic} will be processed by: {', '.join(handler_names)}"
-                )
+                self.logger.debug(f"Topic {message.topic} will be processed by: {', '.join(handler_names)}")
             else:
                 self.logger.warning(f"No handler found for topic: {message.topic}")
 
@@ -775,9 +707,7 @@ class MQTTClientService:
                 try:
                     handler.handle_message(message)
                 except Exception as e:
-                    self.logger.error(
-                        f"Error in {handler.__class__.__name__} handler: {str(e)}"
-                    )
+                    self.logger.error(f"Error in {handler.__class__.__name__} handler: {str(e)}")
 
             # Call topic-specific callbacks
             for topic_pattern, callbacks in self.subscription_callbacks.items():
@@ -838,9 +768,7 @@ class MQTTClientService:
             retries = 0
             while retries < self.config.max_retries and not self.connected:
                 try:
-                    self.logger.info(
-                        f"Attempting to reconnect ({retries + 1}/{self.config.max_retries})"
-                    )
+                    self.logger.info(f"Attempting to reconnect ({retries + 1}/{self.config.max_retries})")
                     if self.connect():
                         break
                 except Exception as e:
@@ -870,9 +798,7 @@ class MQTTClientService:
 
 
 # Factory function to create MQTT client service
-def create_mqtt_service(
-    config: Dict[str, Any], auth_service: MQTTAuthService = None, app=None
-) -> MQTTClientService:
+def create_mqtt_service(config: Dict[str, Any], auth_service: MQTTAuthService = None, app=None) -> MQTTClientService:
     """
     Factory function to create MQTT client service from configuration
 

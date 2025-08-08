@@ -79,14 +79,10 @@ class DeviceStatusCache:
             status = self.redis.get(key)
             return status
         except Exception as e:
-            logger.warning(
-                f"Failed to get cached status for device {device_id}: {str(e)}"
-            )
+            logger.warning(f"Failed to get cached status for device {device_id}: {str(e)}")
             return None
 
-    def update_device_last_seen(
-        self, device_id: int, timestamp: Optional[datetime] = None
-    ) -> bool:
+    def update_device_last_seen(self, device_id: int, timestamp: Optional[datetime] = None) -> bool:
         """
         Update the last seen timestamp for a device
 
@@ -138,9 +134,7 @@ class DeviceStatusCache:
                 return datetime.fromisoformat(timestamp_str)
             return None
         except Exception as e:
-            logger.warning(
-                f"Failed to get cached last seen for device {device_id}: {str(e)}"
-            )
+            logger.warning(f"Failed to get cached last seen for device {device_id}: {str(e)}")
             return None
 
     def set_device_offline(self, device_id: int) -> bool:
@@ -190,9 +184,7 @@ class DeviceStatusCache:
             logger.warning(f"Failed to get cached statuses for devices: {str(e)}")
             return {}
 
-    def get_all_device_last_seen(
-        self, device_ids: List[int]
-    ) -> Dict[int, Optional[datetime]]:
+    def get_all_device_last_seen(self, device_ids: List[int]) -> Dict[int, Optional[datetime]]:
         """
         Get last seen timestamps for multiple devices efficiently
 
@@ -233,9 +225,7 @@ class DeviceStatusCache:
             logger.warning(f"Failed to get cached last seen for devices: {str(e)}")
             return {}
 
-    def get_device_status_summary(
-        self, device_ids: List[int]
-    ) -> Dict[int, Dict[str, Any]]:
+    def get_device_status_summary(self, device_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """
         Get status summary for multiple devices
 
@@ -322,9 +312,7 @@ class DeviceStatusCache:
                 # Execute all deletes
                 pipeline.execute()
 
-                logger.info(
-                    f"Cleared all device caches ({len(status_keys)} status, {len(lastseen_keys)} last seen)"
-                )
+                logger.info(f"Cleared all device caches ({len(status_keys)} status, {len(lastseen_keys)} last seen)")
                 return True
             else:
                 logger.info("No device caches to clear")
@@ -334,9 +322,7 @@ class DeviceStatusCache:
             logger.warning(f"Failed to clear all device caches: {str(e)}")
             return False
 
-    def _sync_status_to_database(
-        self, device_id: int, redis_status: str, old_status: str = None
-    ):
+    def _sync_status_to_database(self, device_id: int, redis_status: str, old_status: str = None):
         """
         Sync Redis status change to SQLite database
 
@@ -359,9 +345,7 @@ class DeviceStatusCache:
                 # Get device from database
                 device = Device.query.get(device_id)
                 if not device:
-                    logger.warning(
-                        f"Device {device_id} not found in database for status sync"
-                    )
+                    logger.warning(f"Device {device_id} not found in database for status sync")
                     return
 
                 # Only update if status actually needs to change
@@ -378,9 +362,7 @@ class DeviceStatusCache:
                         f"Redis({old_status}→{redis_status}) → DB({old_db_status}→{db_status})"
                     )
                 else:
-                    logger.debug(
-                        f"Device {device_id} database status already matches: {db_status}"
-                    )
+                    logger.debug(f"Device {device_id} database status already matches: {db_status}")
             else:
                 # We're outside Flask context (e.g., MQTT background thread)
                 # Use the direct database sync function
@@ -388,17 +370,11 @@ class DeviceStatusCache:
                     from src.utils.redis_util import _sync_to_database_standalone
 
                     _sync_to_database_standalone(device_id, redis_status, old_status)
-                    logger.info(
-                        f"Background sync completed for device {device_id}: {redis_status}"
-                    )
+                    logger.info(f"Background sync completed for device {device_id}: {redis_status}")
                 except ImportError:
-                    logger.error(
-                        f"Cannot sync device {device_id} - Redis utility not available"
-                    )
+                    logger.error(f"Cannot sync device {device_id} - Redis utility not available")
                 except Exception as util_error:
-                    logger.error(
-                        f"Failed to sync device {device_id} via utility: {util_error}"
-                    )
+                    logger.error(f"Failed to sync device {device_id} via utility: {util_error}")
 
         except Exception as e:
             logger.error(f"Failed to sync device {device_id} status to database: {e}")
@@ -435,9 +411,7 @@ class DeviceStatusCache:
             self.status_change_callbacks.remove(callback)
             logger.debug(f"Unregistered status change callback: {callback.__name__}")
 
-    def _trigger_status_change_callbacks(
-        self, device_id: int, old_status: str, new_status: str
-    ):
+    def _trigger_status_change_callbacks(self, device_id: int, old_status: str, new_status: str):
         """
         Trigger all registered status change callbacks
 

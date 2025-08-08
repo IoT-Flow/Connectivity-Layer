@@ -16,9 +16,7 @@ def control_device(device_id):
         return jsonify({"error": "Device not found"}), 404
 
     # Store command in DB for tracking
-    control = DeviceControl(
-        device_id=device_id, command=command, parameters=parameters, status="pending"
-    )
+    control = DeviceControl(device_id=device_id, command=command, parameters=parameters, status="pending")
     db.session.add(control)
     db.session.commit()
     publish_device_command(device_id, command, parameters)
@@ -41,9 +39,7 @@ def update_control_status(device_id, control_id):
 
 @control_bp.route("/<int:device_id>/control/pending", methods=["GET"])
 def get_pending_controls(device_id):
-    controls = DeviceControl.query.filter_by(
-        device_id=device_id, status="pending"
-    ).all()
+    controls = DeviceControl.query.filter_by(device_id=device_id, status="pending").all()
     result = [
         {
             "id": c.id,

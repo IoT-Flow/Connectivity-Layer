@@ -64,9 +64,7 @@ class TimestampFormatter:
 
                 # Try to parse as number first (string representation of epoch)
                 if timestamp_str.replace(".", "").isdigit():
-                    return TimestampFormatter._parse_epoch_timestamp(
-                        float(timestamp_str)
-                    )
+                    return TimestampFormatter._parse_epoch_timestamp(float(timestamp_str))
 
                 # Try ISO format parsing (handles timezone info)
                 return TimestampFormatter._parse_iso_timestamp(timestamp_str)
@@ -93,9 +91,7 @@ class TimestampFormatter:
         if "+00:00Z" in timestamp_str:
             timestamp_str = timestamp_str.replace("+00:00Z", "Z")
         elif "+00:00z" in timestamp_str.lower():
-            timestamp_str = timestamp_str.replace("+00:00z", "Z").replace(
-                "+00:00Z", "Z"
-            )
+            timestamp_str = timestamp_str.replace("+00:00z", "Z").replace("+00:00Z", "Z")
 
         # Handle timezone suffix
         if timestamp_str.endswith("Z"):
@@ -196,9 +192,7 @@ def format_timestamp_for_storage(dt: datetime) -> str:
     return TimestampFormatter.format_for_storage(dt)
 
 
-def format_timestamp_for_display(
-    dt: datetime, format_type: Optional[str] = None
-) -> str:
+def format_timestamp_for_display(dt: datetime, format_type: Optional[str] = None) -> str:
     """Format timestamp for display - convenience function"""
     return TimestampFormatter.format_for_display(dt, format_type)
 
