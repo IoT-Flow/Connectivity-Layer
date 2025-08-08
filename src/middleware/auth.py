@@ -215,7 +215,7 @@ def log_request_middleware():
     return middleware
 
 
-ADMIN_TOKEN = os.environ.get("IOTFLOW_ADMIN_TOKEN", "changeme_admin_token")
+ADMIN_TOKEN = os.environ.get("IOTFLOW_ADMIN_TOKEN", "test")
 
 
 def require_admin_token(f):
