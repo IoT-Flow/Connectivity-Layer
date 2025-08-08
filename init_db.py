@@ -39,10 +39,12 @@ def init_database():
                 print("All tables already exist. Proceeding with data initialization...")
 
             # Create admin user only if not exists
+
             admin_user = User.query.filter_by(username="admin").first()
             if not admin_user:
                 print("Creating admin user...")
                 admin_user = User(
+                    user_id="dcf1ab8e07364bfea0d7b34cc54c8c48",
                     username="admin",
                     email="admin@iotflow.local",
                     password_hash=generate_password_hash("admin123"),
@@ -56,6 +58,7 @@ def init_database():
             test_user = User.query.filter_by(username="test").first()
             if not test_user:
                 test_user = User(
+                    user_id="testuser00000000000000000000000001",
                     username="test",
                     email="test@iotflow.local",
                     password_hash=generate_password_hash("test123"),
