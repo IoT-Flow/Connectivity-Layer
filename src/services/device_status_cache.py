@@ -4,7 +4,6 @@ Provides caching for device online/offline status and last seen timestamps using
 Automatically syncs status changes to SQLite database
 """
 
-import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
@@ -348,7 +347,7 @@ class DeviceStatusCache:
         """
         try:
             # Check if we're in a Flask request context
-            from flask import has_request_context, current_app
+            from flask import has_request_context
 
             if has_request_context():
                 # We're in a Flask request context, use the normal approach
@@ -411,7 +410,7 @@ class DeviceStatusCache:
                     from src.models import db
 
                     db.session.rollback()
-            except:
+            except Exception:
                 pass
 
     def register_status_change_callback(self, callback):

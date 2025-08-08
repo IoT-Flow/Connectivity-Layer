@@ -241,17 +241,20 @@ def print_command_line_examples():
         },
         {
             "title": "Random Names with Custom API",
-            "command": "python mqtt_device_simulator.py --random-names --api-url http://192.168.1.100:5000/api/v1 --devices 4",
+            "command": ("python mqtt_device_simulator.py --random-names "
+                        "--api-url http://192.168.1.100:5000/api/v1 --devices 4"),
             "description": "Creates 4 devices with random names connecting to custom API endpoint",
         },
         {
             "title": "Custom MQTT Broker with Verbose Logging",
-            "command": "python mqtt_device_simulator.py --mqtt-host 192.168.1.50 --mqtt-port 1883 --random-names --verbose",
+            "command": ("python mqtt_device_simulator.py --mqtt-host 192.168.1.50 "
+                        "--mqtt-port 1883 --random-names --verbose"),
             "description": "Connects to custom MQTT broker with random names and detailed logging",
         },
         {
             "title": "Production Simulation",
-            "command": 'python mqtt_device_simulator.py --device-names "Production Line A" "Quality Control Station" "Packaging Unit" --user-id prod_supervisor_001',
+            "command": ('python mqtt_device_simulator.py --device-names "Production Line A" '
+                        '"Quality Control Station" "Packaging Unit" --user-id prod_supervisor_001'),
             "description": "Simulates production environment with specific device names and user ID",
         },
     ]
@@ -262,7 +265,7 @@ def print_command_line_examples():
         print(f"Command: {example['command']}")
         print(f"Description: {example['description']}")
 
-    print(f"\n💡 Pro Tips:")
+    print("\n💡 Pro Tips:")
     print("- Use --random-names for quick testing with realistic device names")
     print("- Use --device-names for specific scenarios and demos")
     print("- Random names include realistic locations based on device type")

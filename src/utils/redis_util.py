@@ -3,11 +3,10 @@ Redis Utility for Device Status Management
 Provides Redis operations that work both inside and outside Flask application context
 """
 
-import json
 import logging
 import redis
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,5 @@
 import os
 from iotdb.Session import Session
-from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
-from iotdb.utils.Tablet import Tablet
 import logging
 
 logger = logging.getLogger(__name__)
@@ -53,7 +51,6 @@ class IoTDBConfig:
 
         try:
             # Set storage group (database)
-            storage_groups = [self.database]
             self.session.set_storage_group(self.database)
             logger.info(f"Storage group set: {self.database}")
         except Exception as e:

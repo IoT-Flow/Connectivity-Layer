@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
-from src.models import Device, DeviceAuth, DeviceConfiguration, User, db
+from src.models import Device, DeviceConfiguration, User, db
 from src.middleware.auth import (
     authenticate_device,
     validate_json_payload,
@@ -14,7 +14,6 @@ from src.middleware.security import (
     input_sanitization_middleware,
 )
 from src.services.iotdb import IoTDBService
-from werkzeug.security import check_password_hash
 from datetime import datetime, timezone
 import json
 
@@ -85,9 +84,9 @@ def register_device():
         )
 
         response_data = device.to_dict()
-        response_data["api_key"] = (
-            device.api_key
-        )  # Include API key in registration response
+        response_data[
+            "api_key"
+        ] = device.api_key  # Include API key in registration response
         response_data["owner"] = {"username": user.username, "email": user.email}
 
         return (
@@ -574,8 +573,6 @@ def get_device_config():
             elif config.data_type == "boolean":
                 value = value.lower() in ("true", "1", "yes") if value else False
             elif config.data_type == "json":
-                import json
-
                 try:
                     value = json.loads(value) if value else {}
                 except json.JSONDecodeError:

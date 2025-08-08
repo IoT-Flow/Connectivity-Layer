@@ -7,7 +7,6 @@ import logging
 import os
 from datetime import datetime, timezone
 from typing import Union, Optional
-import re
 
 logger = logging.getLogger(__name__)
 

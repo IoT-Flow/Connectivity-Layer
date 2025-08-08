@@ -286,7 +286,7 @@ class IoTFlowTester:
 
             # Publish to correct telemetry topic
             topic = f"iotflow/devices/{self.test_device_id}/telemetry"
-            result = self.mqtt_client.publish(topic, json.dumps(telemetry_payload))
+            self.mqtt_client.publish(topic, json.dumps(telemetry_payload))
 
             # Wait for message to be processed
             time.sleep(2)
@@ -323,7 +323,7 @@ class IoTFlowTester:
 
             # Publish to status topic
             topic = f"iotflow/devices/{self.test_device_id}/status/online"
-            result = self.mqtt_client.publish(topic, json.dumps(status_payload))
+            self.mqtt_client.publish(topic, json.dumps(status_payload))
 
             # Wait for message to be processed
             time.sleep(2)
@@ -419,7 +419,6 @@ class IoTFlowTester:
 
             if response.status_code == 200:
                 data = response.json()
-                device_info = data.get("device", {})
                 configurations = data.get("configurations", {})
 
                 self.log_test(
@@ -554,7 +553,7 @@ class IoTFlowTester:
         print(f"Duration: {duration} seconds")
 
         if self.test_device_id:
-            print(f"\nTest Device Created:")
+            print("\nTest Device Created:")
             print(f"  - Device ID: {self.test_device_id}")
             print(f"  - API Key: {self.test_api_key}")
 

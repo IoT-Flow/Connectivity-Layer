@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from src.config.iotdb_config import iotdb_config
 from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
-from iotdb.utils.Tablet import Tablet
 import json
 import logging
 
@@ -257,7 +256,7 @@ class IoTDBService:
                             if isinstance(field_value, bytes):
                                 try:
                                     field_value = field_value.decode("utf-8")
-                                except:
+                                except Exception:
                                     field_value = str(field_value)
 
                             # Handle NaN and special types
@@ -277,7 +276,7 @@ class IoTDBService:
                             if isinstance(field_value, str):
                                 try:
                                     field_value = json.loads(field_value)
-                                except:
+                                except Exception:
                                     pass  # Keep as string if not valid JSON
 
                             result_record[field_name] = field_value
@@ -470,7 +469,7 @@ class IoTDBService:
                             if isinstance(field_value, bytes):
                                 try:
                                     field_value = field_value.decode("utf-8")
-                                except:
+                                except Exception:
                                     field_value = str(field_value)
 
                             # Handle NaN and special types
@@ -490,7 +489,7 @@ class IoTDBService:
                             if isinstance(field_value, str):
                                 try:
                                     field_value = json.loads(field_value)
-                                except:
+                                except Exception:
                                     pass  # Keep as string if not valid JSON
 
                             result[field_name] = field_value
@@ -627,7 +626,7 @@ class IoTDBService:
                             if isinstance(field_value, bytes):
                                 try:
                                     field_value = field_value.decode("utf-8")
-                                except:
+                                except Exception:
                                     field_value = str(field_value)
 
                             # Handle NaN and special types
@@ -647,7 +646,7 @@ class IoTDBService:
                             if isinstance(field_value, str):
                                 try:
                                     field_value = json.loads(field_value)
-                                except:
+                                except Exception:
                                     pass  # Keep as string if not valid JSON
 
                             result_record[field_name] = field_value

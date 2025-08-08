@@ -4,7 +4,6 @@ Comprehensive error handling and security middleware
 
 import re
 import html
-import json
 import traceback
 from flask import current_app, request, jsonify, g
 from functools import wraps
@@ -194,9 +193,9 @@ def security_headers_middleware():
 
                 # HSTS (if HTTPS)
                 if request.is_secure:
-                    response.headers["Strict-Transport-Security"] = (
-                        "max-age=31536000; includeSubDomains"
-                    )
+                    response.headers[
+                        "Strict-Transport-Security"
+                    ] = "max-age=31536000; includeSubDomains"
 
                 # Remove server information
                 response.headers.pop("Server", None)

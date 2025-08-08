@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from src.models import Device, DeviceAuth, DeviceConfiguration, db
-from src.middleware.auth import authenticate_device, require_admin_token
+from src.middleware.auth import require_admin_token
 from datetime import datetime, timezone, timedelta
 from src.services.device_status_cache import (
     DEVICE_STATUS_PREFIX,

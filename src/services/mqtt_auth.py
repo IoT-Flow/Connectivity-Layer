@@ -5,12 +5,10 @@ Note: MQTT broker allows anonymous connections, all authentication happens serve
 """
 
 import logging
-import hashlib
 import json
-from typing import Optional, Dict, Any
-from datetime import datetime, timezone
+from typing import Optional, Dict
 
-from ..models import Device, DeviceAuth, db
+from ..models import Device
 from ..services.iotdb import IoTDBService
 from ..utils.time_util import (
     TimestampFormatter,
@@ -191,9 +189,11 @@ class MQTTAuthService:
                     return False
 
                 # Validate device and authorization using payload data
-                is_authorized, auth_message, device = (
-                    self.is_device_registered_for_mqtt(data)
-                )
+                (
+                    is_authorized,
+                    auth_message,
+                    device,
+                ) = self.is_device_registered_for_mqtt(data)
                 if not is_authorized:
                     logger.warning(
                         f"Device MQTT authorization failed for device {device_id}: {auth_message}"

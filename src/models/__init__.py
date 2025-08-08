@@ -2,7 +2,6 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
 import secrets
 import string
-import json
 import uuid
 
 db = SQLAlchemy()
@@ -363,6 +362,5 @@ class ChartMeasurement(db.Model):
 
 
 # Create the DeviceControl model after all other models are defined
-from src.models.device_control import create_device_control_model
-
+from src.models.device_control import create_device_control_model  # noqa: E402
 DeviceControl = create_device_control_model(db)

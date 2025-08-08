@@ -6,7 +6,7 @@ Defines device types, sensor configurations, and default settings
 
 import json
 from typing import Dict, Any, List
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 
 @dataclass
@@ -238,7 +238,8 @@ if __name__ == "__main__":
     for device_type, config in DEVICE_TYPES.items():
         print(f"\n{device_type.upper()}: {config.description}")
         print(
-            f"  Default intervals: Telemetry={config.default_telemetry_interval}s, Heartbeat={config.default_heartbeat_interval}s"
+            f"  Default intervals: Telemetry={config.default_telemetry_interval}s, "
+            f"Heartbeat={config.default_heartbeat_interval}s"
         )
         print("  Sensors:")
         for sensor_name, sensor_config in config.sensors.items():

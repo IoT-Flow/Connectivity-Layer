@@ -6,7 +6,6 @@ Handles periodic synchronization between Redis cache and database for device sta
 import logging
 import threading
 import time
-from datetime import datetime, timezone
 from typing import Optional, Set
 import redis
 

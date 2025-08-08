@@ -3,9 +3,8 @@ MQTT Topic Architecture for IoTFlow
 Defines the hierarchical topic structure and naming conventions
 """
 
-import re
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from dataclasses import dataclass
 
 

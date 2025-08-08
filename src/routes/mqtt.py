@@ -4,11 +4,10 @@ Provides REST endpoints for MQTT management and monitoring
 """
 
 from flask import Blueprint, request, jsonify, current_app
-from typing import Dict, Any
 import json
 from datetime import datetime
 
-from ..middleware.auth import authenticate_device, require_admin_token
+from ..middleware.auth import require_admin_token
 from ..middleware.monitoring import request_metrics_middleware
 from ..middleware.security import (
     security_headers_middleware,
@@ -504,7 +503,6 @@ def mqtt_telemetry(device_id):
 
         # Extract telemetry data
         telemetry_data = data.get("data", {})
-        metadata = data.get("metadata", {})
         timestamp_str = data.get("timestamp")
 
         if not telemetry_data:

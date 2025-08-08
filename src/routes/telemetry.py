@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime, timezone
 from src.services.iotdb import IoTDBService
-from src.models import Device, db
+from src.models import Device
 
 # Create blueprint for telemetry routes
 telemetry_bp = Blueprint("telemetry", __name__, url_prefix="/api/v1/telemetry")

@@ -4,7 +4,6 @@ Advanced monitoring and health check middleware
 
 import time
 import psutil
-import redis
 from flask import current_app, jsonify, request
 from functools import wraps
 from src.models import Device, db
@@ -221,7 +220,7 @@ class HealthMonitor:
         except Exception as e:
             try:
                 current_app.logger.error(f"Device metrics error: {str(e)}")
-            except:
+            except Exception:
                 # Fallback if current_app is not available
                 print(f"Device metrics error: {str(e)}")
             return {"error": str(e)}
@@ -231,7 +230,6 @@ class HealthMonitor:
         """Get telemetry count from IoTDB for specified time range"""
         try:
             from src.config.iotdb_config import iotdb_config
-            from datetime import datetime, timezone
 
             if not iotdb_config.is_connected():
                 return 0
@@ -244,7 +242,7 @@ class HealthMonitor:
 
             timeseries_count = 0
             while session_data_set.has_next():
-                record = session_data_set.next()
+                session_data_set.next()
                 timeseries_count += 1
 
             session_data_set.close_operation_handle()
@@ -258,7 +256,7 @@ class HealthMonitor:
                 current_app.logger.error(
                     f"Error getting telemetry count from IoTDB: {str(e)}"
                 )
-            except:
+            except Exception:
                 # Fallback if current_app is not available
                 print(f"Error getting telemetry count from IoTDB: {str(e)}")
             return 0

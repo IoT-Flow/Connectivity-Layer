@@ -3,7 +3,7 @@ from flask import request, jsonify, current_app
 import hashlib
 import time
 import os
-from src.models import Device, DeviceAuth, db
+from src.models import Device
 
 
 def hash_api_key(api_key):

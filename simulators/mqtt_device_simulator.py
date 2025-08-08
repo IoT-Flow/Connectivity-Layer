@@ -19,14 +19,13 @@ import time
 import random
 import logging
 import argparse
-import threading
 import signal
 import sys
 import math
 import os
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import requests
 
 # Import MQTT library with fallback
@@ -42,11 +41,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Import timestamp utilities
 try:
-    import sys
-
     sys.path.append("../src")  # Add src to path for imports
-    from utils.time_util import TimestampFormatter, format_timestamp_for_storage
-
+    # Note: TimestampFormatter and format_timestamp_for_storage are not used
+    # Using local timestamp functions instead
     TIMESTAMP_UTIL_AVAILABLE = True
 except ImportError:
     print("Warning: Timestamp utility not available. Using basic timestamps.")
@@ -58,7 +55,6 @@ try:
         DEVICE_TYPES,
         DEFAULT_SETTINGS,
         SAMPLE_DEVICES,
-        get_device_type_config,
     )
 except ImportError:
     # Fallback if config file not available
@@ -431,7 +427,6 @@ class MQTTDeviceSimulator:
         mqtt_host: str = "localhost",
         mqtt_port: int = 1883,
     ):
-
         self.api_base_url = api_base_url
         self.mqtt_host = mqtt_host
         self.mqtt_port = mqtt_port
@@ -929,6 +924,4 @@ def main():
 
 
 if __name__ == "__main__":
-    import math  # Import needed for temperature calculations
-
     sys.exit(main())

@@ -10,12 +10,11 @@ import threading
 import time
 from typing import Dict, Callable, Optional, Any, List
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 import paho.mqtt.client as mqtt
-from cryptography.fernet import Fernet
 
-from .topics import MQTTTopicManager, QoSLevel, TopicType
+from .topics import MQTTTopicManager, TopicType
 from ..services.mqtt_auth import MQTTAuthService
 from ..utils.time_util import TimestampFormatter, format_timestamp_for_storage
 
@@ -755,14 +754,12 @@ class MQTTClientService:
             )
 
             # Route message to appropriate handlers
-            handled = False
             eligible_handlers = []
 
             # First check which handlers can handle the topic
             for handler in self.message_handlers:
                 if handler.can_handle(message.topic):
                     eligible_handlers.append(handler)
-                    handled = True
 
             # Log the matching handlers
             if eligible_handlers:
