@@ -35,7 +35,7 @@ def init_database():
             elif missing_tables:
                 print(f"Found missing tables: {[t.name for t in missing_tables]}. Creating only missing tables...")
                 db.create_all(tables=missing_tables)
-            else:app.
+            else:
                 print("All tables already exist. Proceeding with data initialization...")
 
             # Create admin user only if not exists
