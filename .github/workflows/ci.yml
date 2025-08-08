@@ -24,7 +24,7 @@ jobs:
       - name: Lint with flake8
         run: |
           
-          poetry run flake8 src/ simulators/ tests/
+          poetry run flake8 --max-line-length=120 src/ simulators/ tests/
       - name: Run tests
         run: |
           poetry run pytest --maxfail=2 --disable-warnings
