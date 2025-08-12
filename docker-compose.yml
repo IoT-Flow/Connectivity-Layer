@@ -53,6 +53,28 @@ services:
       timeout: 10s
       retries: 3
 
+  # Prometheus service for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: iotflow_prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"
+    volumes:
+      - /home/chameau/prometheus:/etc/prometheus
+    restart: unless-stopped
+
+  # mqtt_exporter:
+  #   image: kpetrem/mqtt-exporter:master
+  #   container_name: iotflow_mqtt_exporter
+  #   environment:
+  #     - MQTT_ADDRESS=192.168.0.1
+  #     - MQTT_TOPIC=\$SYS/#
+  #   ports:
+  #     - "9423:9423"
+  #   restart: unless-stopped
+
 volumes:
   iotdb_data:
     driver: local
@@ -61,4 +83,6 @@ volumes:
   redis_data:
     driver: local
   mosquitto_data:
+    driver: local
+  prometheus_data:
     driver: local

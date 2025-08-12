@@ -445,31 +445,56 @@ IoTFlow_ConnectivityLayer/
 │   ├── routes/                      # API route handlers
 │   │   ├── devices.py              # Device management endpoints
 │   │   ├── telemetry.py            # Telemetry data endpoints
-│   │   └── admin.py                # Administrative endpoints
+│   │   ├── admin.py                # Administrative endpoints
+│   │   ├── control.py              # Device control endpoints
+│   │   ├── mqtt.py                 # MQTT endpoints
 │   ├── services/                    # Business logic services
-│   │   └── iotdb.py                # IoTDB service layer
+│   │   ├── device_status_cache.py  # Device status cache logic
+│   │   ├── iotdb.py                # IoTDB service layer
+│   │   ├── mqtt_auth.py            # MQTT authentication
+│   │   └── status_sync_service.py  # Status sync logic
 │   ├── middleware/                  # Request/response middleware
 │   │   ├── auth.py                 # Authentication & authorization
 │   │   ├── security.py             # Security utilities
 │   │   └── monitoring.py           # Performance monitoring
 │   └── utils/                       # Utility functions
-│       └── logging.py              # Logging configuration
+│       ├── logging.py              # Logging configuration
+│       ├── redis_util.py           # Redis utilities
+│       └── time_util.py            # Timestamp utilities
 ├── 📁 simulators/                   # Device simulation & testing
-│   ├── new_mqtt_device_simulator.py # Advanced MQTT device simulator
-│   ├── NEW_MQTT_SIMULATOR.md       # Detailed simulator documentation
+│   ├── mqtt_device_simulator.py    # Advanced MQTT device simulator
+│   ├── example_usage.py            # Simulator usage example
+│   ├── simulator_config.py         # Simulator configuration
 │   └── README.md                   # Simulator usage guide
 ├── 📁 mqtt/                         # MQTT broker configuration
-│   └── config/                     # Mosquitto configuration files
+│   ├── config/                     # Mosquitto configuration files
+│   └── logs/                       # Mosquitto logs
 ├── 📁 tests/                        # Test suites (unit & integration)
+│   ├── test_device_registration.py # Device registration tests
+│   ├── test_end_to_end.py          # End-to-end tests
+│   └── test_timestamps.py          # Timestamp tests
+├── 📁 docs/                         # Documentation
+│   ├── device_status_cache.md
+│   ├── esp32_registration_workflow.md
+│   ├── iotdb_integration.md
+│   └── status_sync_service.md
 ├── 🐳 docker-compose.yml            # Container orchestration
 ├── 🔧 docker-manage.sh              # Docker management script
 ├── 🔧 manage.py                     # Python management script
 ├── 📦 pyproject.toml                # Poetry dependencies
-├── 📄 .env                          # Environment configuration
-└── 📚 Documentation/                # Comprehensive docs
-    ├── MANAGEMENT_GUIDE.md         # Management & deployment guide
-    ├── HTTP_SIMULATION_TEST_RESULTS.md  # Testing results
-    └── iotdb_integration.md        # Architecture docs
+├── 📄 requirements.txt              # Pip dependencies
+├── 📄 POETRY.md                     # Poetry usage guide
+├── 📄 app.py                        # Flask application entrypoint
+├── 📄 init_db.py                    # Database initialization script
+├── 📄 mqtt_manage.sh                # MQTT management script
+├── 📄 README.md                     # Project documentation
+├── 📄 .env.example                  # Example environment config
+├── 📄 instance/                     # SQLite database files
+├── 📁 esp32_examples/               # ESP32 example code
+│   ├── esp32_mqtt_client.ino
+│   ├── main.cpp
+│   ├── platformio.ini
+│   └── src/
 ```
 
 ### Management Commands

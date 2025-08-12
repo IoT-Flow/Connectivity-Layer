@@ -226,7 +226,7 @@ def _sync_to_database_standalone(device_id: int, new_status: str, old_status: st
 
         try:
             # Map Redis status to database status
-            db_status = "active" if new_status == "online" else "inactive"
+            db_status = "active" if new_status == "online" else "Offline"
             current_time = datetime.now(timezone.utc)
 
             # Update device status in database

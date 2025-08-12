@@ -1,8 +1,10 @@
 import os
 import redis
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response  # add Response for Prometheus metrics
 from flask_cors import CORS
 from flask_migrate import Migrate
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
 from src.config.config import config
 from src.models import db
 from src.routes.devices import device_bp
@@ -41,7 +43,28 @@ def create_app(config_name=None):
          allow_headers=["Content-Type", "Authorization", "X-API-Key"],
          expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"]
     )
-    
+
+    # Instrument HTTP request metrics
+    from src.metrics import HTTP_REQUEST_COUNT, HTTP_REQUEST_LATENCY, HTTP_REQUEST_COUNT_ALL
+    import time
+
+    @app.before_request
+    def _start_timer():
+        request._start_time = time.time()
+
+    @app.after_request
+    def _record_request_data(response):
+        try:
+            latency = time.time() - getattr(request, '_start_time', time.time())
+            # Per-endpoint counter
+            HTTP_REQUEST_COUNT.labels(request.method, request.path, response.status_code).inc()
+            # Global counter for all requests
+            HTTP_REQUEST_COUNT_ALL.inc()
+            HTTP_REQUEST_LATENCY.labels(request.method, request.path).observe(latency)
+        except Exception:
+            pass
+        return response
+
     migrate = Migrate(app, db)
     
     # Initialize Redis client
@@ -143,6 +166,12 @@ def create_app(config_name=None):
             'documentation': 'See README.md for API documentation'
         }), 200
     
+    # Prometheus metrics endpoint
+    @app.route('/metrics')
+    def metrics():
+        """Prometheus metrics endpoint"""
+        return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+
     # Error handlers
     @app.errorhandler(404)
     def not_found(error):

@@ -853,7 +853,7 @@ def main():
     parser.add_argument("--mqtt-host", default="localhost", help="MQTT broker hostname")
     parser.add_argument("--mqtt-port", type=int, default=1883, help="MQTT broker port")
     parser.add_argument(
-        "--devices", type=int, default=4, help="Number of devices to simulate"
+        "--devices", type=int, default=1, help="Number of devices to simulate"
     )
     parser.add_argument(
         "--user-id", default="default_user_123", help="User ID for device registration"
