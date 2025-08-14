@@ -75,6 +75,24 @@ services:
   #     - "9423:9423"
   #   restart: unless-stopped
 
+
+
+  # Grafana dashboard for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: iotflow_grafana
+    ports:
+      - "3333:3000"
+      
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   iotdb_data:
     driver: local
@@ -85,4 +103,6 @@ volumes:
   mosquitto_data:
     driver: local
   prometheus_data:
+    driver: local
+  grafana_data:
     driver: local
