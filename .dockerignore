@@ -1,0 +1,107 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Test files and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+test/
+tests/
+*_test.py
+test_*.py
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Development tools
+.flake8
+.bandit
+.pre-commit-config.yaml
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+
+mqtt/logs/
+mqtt/data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Poetry lock file (we copy it explicitly)
+# poetry.lock
+
+# Locust files
+locust/
+
+# Simulators
+simulators/
+
+# Grafana configs
+grafana/
+
+# ESP32 examples
+esp32_examples/
+
+# Scripts
+*.sh

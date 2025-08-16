@@ -83,7 +83,6 @@ services:
     container_name: iotflow_grafana
     ports:
       - "3333:3000"
-      
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -92,6 +91,64 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+
+  # Node Exporter for host metrics (CPU, memory, disk)
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: iotflow_node_exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($|/)"
+      
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+
+  # IoTFlow Connectivity Layer application
+  iot_connectivity:
+    build: .
+    container_name: iotflow_connectivity
+    # If you prefer to use a pre-built image, replace the `build` key with:
+    image: connectivity-layer-app:latest
+   
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=5000
+      - REDIS_URL=redis://redis:6379/0
+      - IOTDB_HOST=iotdb
+      - IOTDB_PORT=6667
+      - IOTDB_USERNAME=root
+      - IOTDB_PASSWORD=root
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      # Optional: set admin token for locust/grafana tests
+      - IOTFLOW_ADMIN_TOKEN=test
+    depends_on:
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+      iotdb:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+    # restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   iotdb_data:
