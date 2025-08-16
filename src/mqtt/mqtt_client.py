@@ -17,10 +17,12 @@ def connect_mqtt():
     """Connect to MQTT broker with retry logic for containerized environments"""
     max_retries = 10
     retry_delay = 2
-    
+
     for attempt in range(max_retries):
         try:
-            logger.info(f"Attempting to connect to MQTT broker at {MQTT_BROKER}:{MQTT_PORT} (attempt {attempt + 1}/{max_retries})")
+            logger.info(
+                f"Attempting to connect to MQTT broker {MQTT_BROKER}:{MQTT_PORT} (attempt {attempt + 1}/{max_retries})"
+            )
             mqtt_client.connect(MQTT_BROKER, MQTT_PORT)
             mqtt_client.loop_start()
             logger.info("Successfully connected to MQTT broker")
