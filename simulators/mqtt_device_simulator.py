@@ -856,7 +856,7 @@ def main():
         "--devices", type=int, default=1, help="Number of devices to simulate"
     )
     parser.add_argument(
-        "--user-id", default="default_user_123", help="User ID for device registration"
+        "--user-id", default="a78689be04814ac187e0191656ee6fb1", help="User ID for device registration"
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
