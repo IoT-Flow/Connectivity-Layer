@@ -170,39 +170,24 @@ def _get_standalone_db_session():
         # Load environment variables
         load_dotenv()
 
-        # Get database URL - ensure we use the same database as Flask
-        # Use environment variables for database paths
-        possible_db_paths = [
-            os.environ.get("DB_PRIMARY_PATH", "instance/iotflow.db"),  # Primary path from env
-            os.environ.get("DB_FALLBACK_PATH", "iotflow.db"),  # Fallback path from env
-        ]
-
-        db_url = None
-        for db_path in possible_db_paths:
-            if os.path.exists(db_path):
-                db_url = f"sqlite:///{os.path.abspath(db_path)}"
-                logger.debug(f"Found database at: {db_path}")
-                break
-
+        # Get database URL from environment (should match Flask app config)
+        db_url = os.environ.get("DATABASE_URL")
+        
         if not db_url:
-            # Create with instance path as default
-            instance_path = "instance/iotflow.db"
-            os.makedirs(os.path.dirname(instance_path), exist_ok=True)
-            db_url = f"sqlite:///{os.path.abspath(instance_path)}"
-            logger.debug(f"Using default database path: {instance_path}")
-
+            # Fallback to default PostgreSQL connection
+            db_url = "postgresql://iotflow:iotflowpass@postgres:5432/iotflow"
+            logger.warning(f"DATABASE_URL not set, using default: {db_url}")
+        
         logger.debug(f"Using database URL: {db_url}")
 
-        # Create engine with SQLite optimizations
+        # Create engine with PostgreSQL optimizations
         _standalone_engine = create_engine(
             db_url,
-            # SQLite-specific optimizations
-            connect_args={
-                "check_same_thread": False,  # Allow multiple threads
-                "timeout": 20,  # Wait up to 20 seconds for locks
-            },
-            # Enable connection pool checking
+            # PostgreSQL connection optimizations
+            pool_size=5,
+            max_overflow=10,
             pool_pre_ping=True,  # Verify connections before use
+            pool_recycle=3600,   # Recycle connections every hour
         )
         _standalone_session_factory = sessionmaker(bind=_standalone_engine)
 
@@ -226,7 +211,7 @@ def _sync_to_database_standalone(device_id: int, new_status: str, old_status: st
 
         try:
             # Map Redis status to database status
-            db_status = "active" if new_status == "online" else "Offline"
+            db_status = "active" if new_status == "online" else "offline"
             current_time = datetime.now(timezone.utc)
 
             # Update device status in database

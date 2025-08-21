@@ -49,9 +49,10 @@ A modern, production-ready IoT platform built with Python Flask for comprehensiv
     └─────────┬─────────┬─────┘
               ↓         ↓
     ┌─────────────┐   ┌──────────────┐
-    │   SQLite    │   │    IoTDB     │
-    │ (Devices)   │   │ (Telemetry)  │
-    └─────────────┘   └──────────────┘
+    │             │   │    IoTDB     │
+    │PostgreSQL   │   │ (Telemetry)  │
+    │(Devices)    │   └──────────────┘
+    └─────────────┘
               ↓
     ┌─────────────────────────┐
     │   Redis (Cache/Queue)   │
@@ -59,7 +60,189 @@ A modern, production-ready IoT platform built with Python Flask for comprehensiv
     └─────────────────────────┘
 ```
 
-## 🚀 Quick Start
+## � PostgreSQL Migration
+
+### Overview
+
+This project supports both SQLite (development) and PostgreSQL (production) databases. PostgreSQL provides better performance, concurrency, and reliability for production deployments.
+
+### Migration Steps
+
+#### 1. PostgreSQL Setup
+
+**Using Docker Compose (Recommended):**
+```bash
+# PostgreSQL is already configured in docker-compose.yml
+./docker-manage.sh start-all
+```
+
+**Manual PostgreSQL Installation:**
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# Create database and user
+sudo -u postgres psql
+CREATE DATABASE iotflow;
+CREATE USER iotflow_user WITH PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE iotflow TO iotflow_user;
+\q
+```
+
+#### 2. Environment Configuration
+
+Update your `.env` file with PostgreSQL connection:
+
+```bash
+# Replace SQLite DATABASE_URL with PostgreSQL
+DATABASE_URL=postgresql://iotflow_user:your_secure_password@localhost:5432/iotflow
+
+# For Docker Compose setup (already configured)
+DATABASE_URL=postgresql://iotflow_user:iotflow_password@postgres:5432/iotflow
+```
+
+#### 3. Database Migration
+
+```bash
+# Initialize PostgreSQL database (drops all existing tables)
+poetry run python init_db.py
+
+# Or using Docker
+./docker-manage.sh init-app
+```
+
+#### 4. Data Migration (Optional)
+
+If you have existing SQLite data to migrate:
+
+```bash
+# Export data from SQLite
+poetry run python scripts/export_sqlite_data.py --output backup.json
+
+# Import to PostgreSQL (after updating DATABASE_URL)
+poetry run python scripts/import_data.py --input backup.json
+```
+
+#### 5. Verification
+
+```bash
+# Test database connection
+poetry run python -c "from src.config.config import db; print('PostgreSQL connected:', db.engine.url)"
+
+# Run health check
+curl http://localhost:5000/health
+
+# Verify Redis-database sync
+tail -f logs/iotflow.log | grep "Database sync"
+```
+
+### Configuration Differences
+
+| Feature | SQLite | PostgreSQL |
+|---------|--------|------------|
+| **Concurrent Connections** | Limited | High |
+| **Data Types** | Basic | Rich (JSON, Arrays, etc.) |
+| **Performance** | Good for small datasets | Optimized for large datasets |
+| **Backup** | File copy | pg_dump/pg_restore |
+| **Scaling** | Single file | Horizontal scaling |
+
+### Production Considerations
+
+#### Connection Pooling
+PostgreSQL automatically uses connection pooling through SQLAlchemy:
+
+```python
+# Configured in src/config/config.py
+SQLALCHEMY_ENGINE_OPTIONS = {
+    'pool_size': 10,
+    'max_overflow': 20,
+    'pool_pre_ping': True,
+    'pool_recycle': 300
+}
+```
+
+#### Backup Strategy
+```bash
+# Database backup
+pg_dump -h localhost -U iotflow_user iotflow > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restore backup
+psql -h localhost -U iotflow_user iotflow < backup_20241201_143000.sql
+```
+
+#### Performance Optimization
+```sql
+-- Recommended indexes for production
+CREATE INDEX idx_devices_status ON devices(status);
+CREATE INDEX idx_devices_last_seen ON devices(last_seen);
+CREATE INDEX idx_devices_api_key ON devices(api_key);
+```
+
+#### Monitoring
+```bash
+# Connection monitoring
+psql -h localhost -U iotflow_user iotflow -c "SELECT count(*) FROM pg_stat_activity WHERE datname='iotflow';"
+
+# Database size monitoring
+psql -h localhost -U iotflow_user iotflow -c "SELECT pg_size_pretty(pg_database_size('iotflow'));"
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+**Connection refused:**
+```bash
+# Check PostgreSQL status
+sudo systemctl status postgresql
+sudo systemctl start postgresql
+```
+
+**Authentication failed:**
+```bash
+# Verify credentials
+psql -h localhost -U iotflow_user iotflow
+```
+
+**Redis sync issues:**
+```bash
+# Check Redis-database sync logs
+tail -f logs/iotflow.log | grep "redis_util\|Database sync"
+
+# Verify Redis connection
+redis-cli ping
+```
+
+**Permission issues:**
+```sql
+-- Grant necessary permissions
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO iotflow_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO iotflow_user;
+```
+
+#### Performance Issues
+
+**Slow queries:**
+```sql
+-- Enable query logging
+ALTER SYSTEM SET log_statement = 'all';
+SELECT pg_reload_conf();
+
+-- Monitor slow queries
+SELECT query, mean_exec_time FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;
+```
+
+**High connection count:**
+```sql
+-- Check active connections
+SELECT count(*) FROM pg_stat_activity WHERE datname='iotflow';
+
+-- Adjust connection limits if needed
+ALTER SYSTEM SET max_connections = 200;
+```
+
+## �🚀 Quick Start
 
 ### Prerequisites
 
@@ -407,21 +590,39 @@ curl -X DELETE "http://localhost:5000/api/v1/admin/cache/devices/1" \
 ```
 ## 🗃️ Data Architecture
 
-### SQLite Database (Device Management)
+### Database Layer (SQLite/PostgreSQL)
 
-**Devices Table:**
-- `id` - Primary key
-- `name` - Unique device identifier  
-- `description` - Device description
-- `device_type` - Category (sensor, actuator, camera, etc.)
-- `api_key` - Unique authentication key (32 chars)
-- `status` - Device status (active, inactive, maintenance)
-- `location` - Physical location
-- `firmware_version` - Current firmware version
-- `hardware_version` - Hardware revision
-- `created_at` - Registration timestamp
-- `updated_at` - Last modification
-- `last_seen` - Last heartbeat/activity
+The platform supports both SQLite (development) and PostgreSQL (production) through SQLAlchemy ORM abstraction.
+
+**Devices Table Schema:**
+- `id` - Primary key (SERIAL/INTEGER)
+- `name` - Unique device identifier (VARCHAR(100))
+- `description` - Device description (TEXT)
+- `device_type` - Category (VARCHAR(50): sensor, actuator, camera, etc.)
+- `api_key` - Unique authentication key (VARCHAR(32))
+- `status` - Device status (VARCHAR(20): active, inactive, maintenance)
+- `location` - Physical location (VARCHAR(200))
+- `firmware_version` - Current firmware version (VARCHAR(50))
+- `hardware_version` - Hardware revision (VARCHAR(50))
+- `created_at` - Registration timestamp (TIMESTAMP)
+- `updated_at` - Last modification (TIMESTAMP)
+- `last_seen` - Last heartbeat/activity (TIMESTAMP)
+
+**Database Selection:**
+- **SQLite**: Perfect for development, testing, and small deployments
+- **PostgreSQL**: Recommended for production, high-concurrency environments
+
+### Redis Cache Layer
+
+**Device Status Cache:**
+- Key pattern: `device_status:{device_id}`
+- TTL: 300 seconds (5 minutes)
+- Purpose: Fast device status lookups, reduced database queries
+
+**Background Sync Process:**
+- Periodic synchronization between Redis cache and primary database
+- Handles both SQLite and PostgreSQL connections
+- Configurable sync intervals and error handling
 
 ### IoTDB (Time-Series Telemetry)
 
@@ -575,9 +776,16 @@ poetry run python scripts/send_device_command.py -d TestDevice -c get_status
 | **Flask** | `FLASK_ENV` | Environment mode | `development` |
 | | `FLASK_DEBUG` | Debug mode | `True` |
 | | `SECRET_KEY` | Flask secret key | Auto-generated |
-| **Database** | `DATABASE_URL` | SQLite database path | `sqlite:///iotflow.db` |
-| | `DB_PRIMARY_PATH` | Primary database file path | `instance/iotflow.db` |
-| | `DB_FALLBACK_PATH` | Fallback database file path | `iotflow.db` |
+| **Database** | `DATABASE_URL` | Database connection URL | `sqlite:///iotflow.db` |
+| | | SQLite example | `sqlite:///instance/iotflow.db` |
+| | | PostgreSQL example | `postgresql://user:pass@host:5432/db` |
+| | `DB_PRIMARY_PATH` | Primary database file path (SQLite only) | `instance/iotflow.db` |
+| | `DB_FALLBACK_PATH` | Fallback database file path (SQLite only) | `iotflow.db` |
+| **PostgreSQL** | `POSTGRES_DB` | PostgreSQL database name | `iotflow` |
+| | `POSTGRES_USER` | PostgreSQL username | `iotflow_user` |
+| | `POSTGRES_PASSWORD` | PostgreSQL password | `iotflow_password` |
+| | `POSTGRES_HOST` | PostgreSQL host | `postgres` |
+| | `POSTGRES_PORT` | PostgreSQL port | `5432` |
 | **Timestamps** | `TIMESTAMP_FORMAT` | Display format (iso/readable/short/compact) | `readable` |
 | | `TIMESTAMP_TIMEZONE` | Timezone label for display | `UTC` |
 | **Simulator** | `SIMULATOR_TIMESTAMP_FORMAT` | Timestamp format devices send (random/iso/epoch/etc) | `random` |

@@ -44,7 +44,7 @@ def init_database():
             if not admin_user:
                 print("Creating admin user...")
                 admin_user = User(
-                    user_id="dcf1ab8e07364bfea0d7b34cc54c8c48",
+                    user_id="dcf1a",
                     username="admin",
                     email="admin@iotflow.local",
                     password_hash=generate_password_hash("admin123"),
@@ -58,7 +58,7 @@ def init_database():
             test_user = User.query.filter_by(username="test").first()
             if not test_user:
                 test_user = User(
-                    user_id="testuser00000000000000000000000001",
+                    user_id="testuser",
                     username="test",
                     email="test@iotflow.local",
                     password_hash=generate_password_hash("test123"),
