@@ -88,39 +88,52 @@ def create_app(config_name=None):
     # Register error handlers
     comprehensive_error_handler(app)
     
+    # Check if MQTT should be enabled
+    mqtt_enabled = os.environ.get('MQTT_ENABLED', 'true').lower() == 'true'
+    app.config['MQTT_ENABLED'] = mqtt_enabled
+    
     # Register blueprints
     app.register_blueprint(device_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(mqtt_bp)
+    
+    # Only register MQTT blueprint if MQTT is enabled
+    if mqtt_enabled:
+        app.register_blueprint(mqtt_bp)
+    
     app.register_blueprint(telemetry_bp)
     app.register_blueprint(control_bp)
     
-    # Initialize MQTT service with authentication
-    try:
-        # Get MQTT config from the config object
-        config_obj = config[config_name or 'development']()
-        
-        # Initialize MQTT authentication service with app context
-        mqtt_auth_service = MQTTAuthService(app=app)
-        
-        # Create MQTT service with authentication and app reference for Redis cache
-        mqtt_service = create_mqtt_service(config_obj.mqtt_config, mqtt_auth_service, app)
-        app.mqtt_service = mqtt_service
-        app.mqtt_auth_service = mqtt_auth_service
-        
-        # Connect to MQTT broker
-        if mqtt_service.connect():
-            app.logger.info("MQTT service initialized and connected successfully")
+    # Initialize MQTT service with authentication (only if enabled)
+    if mqtt_enabled:
+        try:
+            # Get MQTT config from the config object
+            config_obj = config[config_name or 'development']()
             
-            # Subscribe to device topics for server-side processing
-            mqtt_service.subscribe_to_system_topics()
+            # Initialize MQTT authentication service with app context
+            mqtt_auth_service = MQTTAuthService(app=app)
             
-            app.logger.info("MQTT authentication service initialized")
-        else:
-            app.logger.error("Failed to connect to MQTT broker")
+            # Create MQTT service with authentication and app reference for Redis cache
+            mqtt_service = create_mqtt_service(config_obj.mqtt_config, mqtt_auth_service, app)
+            app.mqtt_service = mqtt_service
+            app.mqtt_auth_service = mqtt_auth_service
             
-    except Exception as e:
-        app.logger.error(f"MQTT service initialization failed: {str(e)}")
+            # Connect to MQTT broker
+            if mqtt_service.connect():
+                app.logger.info("MQTT service initialized and connected successfully")
+                
+                # Subscribe to device topics for server-side processing
+                mqtt_service.subscribe_to_system_topics()
+                
+                app.logger.info("MQTT authentication service initialized")
+            else:
+                app.logger.error("Failed to connect to MQTT broker")
+                
+        except Exception as e:
+            app.logger.error(f"MQTT service initialization failed: {str(e)}")
+            app.mqtt_service = None
+            app.mqtt_auth_service = None
+    else:
+        app.logger.info("MQTT is disabled - skipping MQTT initialization")
         app.mqtt_service = None
         app.mqtt_auth_service = None
     
@@ -212,8 +225,9 @@ def create_app(config_name=None):
         except Exception as e:
             app.logger.error(f"Error creating database tables: {str(e)}")
     
-    # Call connect_mqtt() at app startup (before handling requests)
-    connect_mqtt()
+    # Call connect_mqtt() at app startup (only if MQTT is enabled)
+    if mqtt_enabled:
+        connect_mqtt()
     
     return app
 
