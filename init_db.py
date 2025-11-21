@@ -66,57 +66,175 @@ def init_database():
                 )
                 db.session.add(test_user)
                 db.session.flush()
+                print("Creating test user...")
+            else:
+                print("Test user already exists.")
 
-            print(f"  - Admin user: {admin_user.username}")
+            # Create additional sample users
+            sample_users = [
+                {
+                    'username': 'john_doe',
+                    'email': 'john@iotflow.local',
+                    'password': 'john123',
+                    'is_admin': False
+                },
+                {
+                    'username': 'jane_smith',
+                    'email': 'jane@iotflow.local',
+                    'password': 'jane123',
+                    'is_admin': False
+                },
+                {
+                    'username': 'operator',
+                    'email': 'operator@iotflow.local',
+                    'password': 'operator123',
+                    'is_admin': False
+                }
+            ]
+
+            created_users = [admin_user, test_user]
+            for user_data in sample_users:
+                existing_user = User.query.filter_by(username=user_data['username']).first()
+                if not existing_user:
+                    new_user = User(
+                        username=user_data['username'],
+                        email=user_data['email'],
+                        password_hash=generate_password_hash(user_data['password']),
+                        is_admin=user_data['is_admin']
+                    )
+                    db.session.add(new_user)
+                    db.session.flush()
+                    created_users.append(new_user)
+                    print(f"  - Created user: {new_user.username}")
+                else:
+                    created_users.append(existing_user)
+                    print(f"  - User already exists: {existing_user.username}")
+
+            print(f"\n  - Admin user: {admin_user.username}")
 
             # Create sample devices for testing only if not exist
-            # sample_devices = [
-            #     {
-            #         'name': 'Temperature Sensor 001',
-            #         'description': 'Living room temperature and humidity sensor',
-            #         'device_type': 'sensor',
-            #         'location': 'Living Room',
-            #         'firmware_version': '1.2.3',
-            #         'hardware_version': 'v2.1',
-            #         'user_id': admin_user.id
-            #     },
-            #     {
-            #         'name': 'Smart Door Lock',
-            #         'description': 'WiFi enabled smart door lock',
-            #         'device_type': 'actuator',
-            #         'location': 'Front Door',
-            #         'firmware_version': '2.0.1',
-            #         'hardware_version': 'v1.0',
-            #         'user_id': admin_user.id
-            #     },
-            #     {
-            #         'name': 'Security Camera 01',
-            #         'description': 'Outdoor security camera with motion detection',
-            #         'device_type': 'camera',
-            #         'location': 'Front Yard',
-            #         'firmware_version': '3.1.0',
-            #         'hardware_version': 'v3.2',
-            #         'user_id': admin_user.id
-            #     }
-            # ]
-            # for device_data in sample_devices:
-            #     if not Device.query.filter_by(name=device_data['name']).first():
-            #         device = Device(**device_data)
-            #         db.session.add(device)
-            #         print(f"  - Created device: {device.name}")
-            db.session.commit()
-            # print(f"\nDatabase initialization completed successfully!")
-            # print(f"Created/checked {len(sample_devices)} sample devices.")
+            sample_devices = [
+                # Admin user devices
+                {
+                    'name': 'Temperature Sensor 001',
+                    'description': 'Living room temperature and humidity sensor',
+                    'device_type': 'sensor',
+                    'location': 'Living Room',
+                    'firmware_version': '1.2.3',
+                    'hardware_version': 'v2.1',
+                    'user_id': admin_user.id
+                },
+                {
+                    'name': 'Smart Door Lock',
+                    'description': 'WiFi enabled smart door lock',
+                    'device_type': 'actuator',
+                    'location': 'Front Door',
+                    'firmware_version': '2.0.1',
+                    'hardware_version': 'v1.0',
+                    'user_id': admin_user.id
+                },
+                {
+                    'name': 'Security Camera 01',
+                    'description': 'Outdoor security camera with motion detection',
+                    'device_type': 'camera',
+                    'location': 'Front Yard',
+                    'firmware_version': '3.1.0',
+                    'hardware_version': 'v3.2',
+                    'user_id': admin_user.id
+                },
+                # Test user devices
+                {
+                    'name': 'Humidity Sensor 001',
+                    'description': 'Basement humidity monitor',
+                    'device_type': 'sensor',
+                    'location': 'Basement',
+                    'firmware_version': '1.0.5',
+                    'hardware_version': 'v1.0',
+                    'user_id': test_user.id
+                },
+                {
+                    'name': 'Smart Thermostat',
+                    'description': 'WiFi enabled smart thermostat',
+                    'device_type': 'actuator',
+                    'location': 'Hallway',
+                    'firmware_version': '2.1.0',
+                    'hardware_version': 'v2.0',
+                    'user_id': test_user.id
+                },
+                # Additional devices for other users
+                {
+                    'name': 'Motion Sensor 001',
+                    'description': 'PIR motion sensor for security',
+                    'device_type': 'sensor',
+                    'location': 'Garage',
+                    'firmware_version': '1.1.2',
+                    'hardware_version': 'v1.5',
+                    'user_id': created_users[2].id if len(created_users) > 2 else admin_user.id
+                },
+                {
+                    'name': 'Smart Light Bulb 01',
+                    'description': 'RGB smart light bulb',
+                    'device_type': 'actuator',
+                    'location': 'Bedroom',
+                    'firmware_version': '1.3.0',
+                    'hardware_version': 'v1.0',
+                    'user_id': created_users[3].id if len(created_users) > 3 else admin_user.id
+                },
+                {
+                    'name': 'Water Leak Sensor',
+                    'description': 'Water leak detection sensor',
+                    'device_type': 'sensor',
+                    'location': 'Kitchen',
+                    'firmware_version': '1.0.1',
+                    'hardware_version': 'v1.0',
+                    'user_id': created_users[4].id if len(created_users) > 4 else admin_user.id
+                },
+                {
+                    'name': 'Smart Plug 01',
+                    'description': 'WiFi enabled smart power outlet',
+                    'device_type': 'actuator',
+                    'location': 'Office',
+                    'firmware_version': '2.0.0',
+                    'hardware_version': 'v2.1',
+                    'user_id': created_users[2].id if len(created_users) > 2 else admin_user.id
+                },
+                {
+                    'name': 'Air Quality Monitor',
+                    'description': 'Indoor air quality sensor (CO2, VOC, PM2.5)',
+                    'device_type': 'sensor',
+                    'location': 'Living Room',
+                    'firmware_version': '1.4.2',
+                    'hardware_version': 'v1.3',
+                    'user_id': created_users[3].id if len(created_users) > 3 else admin_user.id
+                }
+            ]
             
-            # Display admin user credentials for testing
+            for device_data in sample_devices:
+                if not Device.query.filter_by(name=device_data['name']).first():
+                    device = Device(**device_data)
+                    db.session.add(device)
+                    print(f"  - Created device: {device.name}")
+            db.session.commit()
+            print(f"\nDatabase initialization completed successfully!")
+            print(f"Created/checked {len(sample_devices)} sample devices.")
+            
+            # Display user credentials for testing
             print("\n" + "="*60)
-            print("ADMIN USER CREDENTIALS:")
+            print("USER CREDENTIALS:")
             print("="*60)
             
-            admin = User.query.filter_by(username="admin").first()
-            print(f"Username: {admin.username}")
-            print(f"Email: {admin.email}")
-            print(f"Password: admin123 (change this in production)")
+            all_users = User.query.all()
+            for user in all_users:
+                # Show password hint for sample users
+                password_hint = "admin123" if user.username == "admin" else \
+                               "test123" if user.username == "test" else \
+                               f"{user.username.split('_')[0]}123" if '_' in user.username else \
+                               f"{user.username}123"
+                print(f"Username: {user.username}")
+                print(f"Email: {user.email}")
+                print(f"Password: {password_hint}")
+                print(f"Admin: {user.is_admin}")
+                print("-" * 40)
             
             print("\n" + "="*60)
             print("SAMPLE DEVICE API KEYS FOR TESTING:")
@@ -124,8 +242,12 @@ def init_database():
             
             devices = Device.query.all()
             for device in devices:
+                owner = User.query.get(device.user_id)
                 print(f"Device: {device.name}")
-                print(f"Owner ID: {device.user_id}")
+                print(f"Type: {device.device_type}")
+                print(f"Location: {device.location}")
+                print(f"Owner: {owner.username if owner else 'Unknown'}")
+                print(f"Device ID: {device.id}")
                 print(f"API Key: {device.api_key}")
                 print("-" * 40)
             

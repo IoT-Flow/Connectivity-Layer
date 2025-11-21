@@ -10,8 +10,16 @@ from src.models import db
 from src.routes.devices import device_bp
 from src.routes.admin import admin_bp
 from src.routes.mqtt import mqtt_bp
-from src.routes.telemetry import telemetry_bp
 from src.routes.control import control_bp
+
+# Import telemetry routes based on configuration
+# Use PostgreSQL by default, fallback to IoTDB if specified
+USE_POSTGRES_TELEMETRY = os.environ.get('USE_POSTGRES_TELEMETRY', 'true').lower() == 'true'
+
+if USE_POSTGRES_TELEMETRY:
+    from src.routes.telemetry_postgres import telemetry_bp
+else:
+    from src.routes.telemetry import telemetry_bp
 from src.utils.logging import setup_logging
 from src.middleware.monitoring import HealthMonitor
 from src.middleware.security import comprehensive_error_handler, security_headers_middleware
