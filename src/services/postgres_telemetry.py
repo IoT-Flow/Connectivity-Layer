@@ -83,6 +83,59 @@ class PostgresTelemetryService:
             self.logger.error(f"PostgreSQL not available: {e}")
             return False
     
+    def write_telemetry(
+        self,
+        device_id: int,
+        data: Dict[str, Any],
+        timestamp: Optional[datetime] = None
+    ) -> bool:
+        """
+        Write telemetry data to PostgreSQL (simplified interface)
+        
+        Args:
+            device_id: Device ID (integer)
+            data: Dictionary of measurement name -> numeric value
+            timestamp: Optional custom timestamp
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if timestamp is None:
+                timestamp = datetime.now(timezone.utc)
+            
+            # Insert each measurement as a separate row (only numeric values)
+            for measurement_name, value in data.items():
+                # Skip non-numeric values
+                if not isinstance(value, (int, float)) or isinstance(value, bool):
+                    self.logger.warning(f"Skipping non-numeric value for {measurement_name}: {value}")
+                    continue
+                
+                numeric_value = float(value)
+                
+                # Insert telemetry record
+                db.session.execute(text("""
+                    INSERT INTO telemetry_data (
+                        device_id, timestamp, measurement_name, numeric_value
+                    ) VALUES (
+                        :device_id, :timestamp, :measurement_name, :numeric_value
+                    )
+                """), {
+                    'device_id': device_id,
+                    'timestamp': timestamp,
+                    'measurement_name': measurement_name,
+                    'numeric_value': numeric_value
+                })
+            
+            db.session.commit()
+            self.logger.debug(f"Telemetry written for device {device_id}: {len(data)} measurements")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            self.logger.error(f"Error writing telemetry: {e}")
+            return False
+    
     def write_telemetry_data(
         self,
         device_id: str,
