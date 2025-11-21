@@ -45,22 +45,9 @@ class PostgresTelemetryService:
                 CREATE TABLE IF NOT EXISTS telemetry_data (
                     id BIGSERIAL PRIMARY KEY,
                     device_id INTEGER NOT NULL,
-                    user_id INTEGER NOT NULL,
                     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                     measurement_name VARCHAR(100) NOT NULL,
-                    numeric_value DOUBLE PRECISION,
-                    text_value TEXT,
-                    boolean_value BOOLEAN,
-                    json_value JSONB,
-                    metadata JSONB,
-                    quality_flag SMALLINT DEFAULT 0,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-                    CONSTRAINT chk_value_not_null CHECK (
-                        numeric_value IS NOT NULL OR 
-                        text_value IS NOT NULL OR 
-                        boolean_value IS NOT NULL OR 
-                        json_value IS NOT NULL
-                    )
+                    numeric_value DOUBLE PRECISION NOT NULL
                 )
             """))
             
@@ -68,11 +55,6 @@ class PostgresTelemetryService:
             db.session.execute(text("""
                 CREATE INDEX IF NOT EXISTS idx_telemetry_device_time 
                 ON telemetry_data (device_id, timestamp DESC)
-            """))
-            
-            db.session.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_telemetry_user_time 
-                ON telemetry_data (user_id, timestamp DESC)
             """))
             
             db.session.execute(text("""
@@ -115,10 +97,10 @@ class PostgresTelemetryService:
         
         Args:
             device_id: Device ID
-            data: Dictionary of measurement name -> value
-            device_type: Type of device
-            user_id: User ID who owns the device
-            metadata: Optional metadata dictionary
+            data: Dictionary of measurement name -> numeric value
+            device_type: Type of device (not used, kept for compatibility)
+            user_id: User ID who owns the device (not used, kept for compatibility)
+            metadata: Optional metadata dictionary (not used, kept for compatibility)
             timestamp: Optional custom timestamp
         
         Returns:
@@ -131,53 +113,27 @@ class PostgresTelemetryService:
             # Convert device_id to integer
             device_id_int = int(device_id)
             
-            # Insert each measurement as a separate row
+            # Insert each measurement as a separate row (only numeric values)
             for measurement_name, value in data.items():
-                # Determine value type and set appropriate column
-                numeric_value = None
-                text_value = None
-                boolean_value = None
-                json_value = None
+                # Skip non-numeric values
+                if not isinstance(value, (int, float)) or isinstance(value, bool):
+                    self.logger.warning(f"Skipping non-numeric value for {measurement_name}: {value}")
+                    continue
                 
-                if isinstance(value, bool):
-                    boolean_value = value
-                elif isinstance(value, (int, float)):
-                    numeric_value = float(value)
-                elif isinstance(value, str):
-                    text_value = value
-                elif isinstance(value, (dict, list)):
-                    import json
-                    json_value = json.dumps(value)
-                else:
-                    # Convert to string as fallback
-                    text_value = str(value)
-                
-                # Convert metadata to JSON string if present
-                metadata_json = None
-                if metadata:
-                    import json
-                    metadata_json = json.dumps(metadata)
+                numeric_value = float(value)
                 
                 # Insert telemetry record
                 db.session.execute(text("""
                     INSERT INTO telemetry_data (
-                        device_id, user_id, timestamp, measurement_name,
-                        numeric_value, text_value, boolean_value, json_value, metadata
+                        device_id, timestamp, measurement_name, numeric_value
                     ) VALUES (
-                        :device_id, :user_id, :timestamp, :measurement_name,
-                        :numeric_value, :text_value, :boolean_value, 
-                        CAST(:json_value AS JSONB), CAST(:metadata AS JSONB)
+                        :device_id, :timestamp, :measurement_name, :numeric_value
                     )
                 """), {
                     'device_id': device_id_int,
-                    'user_id': user_id,
                     'timestamp': timestamp,
                     'measurement_name': measurement_name,
-                    'numeric_value': numeric_value,
-                    'text_value': text_value,
-                    'boolean_value': boolean_value,
-                    'json_value': json_value,
-                    'metadata': metadata_json
+                    'numeric_value': numeric_value
                 })
             
             db.session.commit()
@@ -251,11 +207,7 @@ class PostgresTelemetryService:
                 SELECT 
                     timestamp,
                     measurement_name,
-                    numeric_value,
-                    text_value,
-                    boolean_value,
-                    json_value,
-                    metadata
+                    numeric_value
                 FROM telemetry_data
                 WHERE device_id = :device_id
                     AND timestamp BETWEEN :start_time AND :end_time
@@ -278,18 +230,8 @@ class PostgresTelemetryService:
                         'measurements': {}
                     }
                 
-                # Get the actual value
-                value = (
-                    row.numeric_value if row.numeric_value is not None
-                    else row.text_value if row.text_value is not None
-                    else row.boolean_value if row.boolean_value is not None
-                    else row.json_value
-                )
-                
-                telemetry_by_time[ts]['measurements'][row.measurement_name] = value
-                
-                if row.metadata:
-                    telemetry_by_time[ts]['metadata'] = row.metadata
+                # Store numeric value
+                telemetry_by_time[ts]['measurements'][row.measurement_name] = row.numeric_value
             
             return list(telemetry_by_time.values())
             
@@ -325,10 +267,7 @@ class PostgresTelemetryService:
             result = db.session.execute(text("""
                 SELECT 
                     measurement_name,
-                    numeric_value,
-                    text_value,
-                    boolean_value,
-                    json_value
+                    numeric_value
                 FROM telemetry_data
                 WHERE device_id = :device_id
                     AND timestamp = :timestamp
@@ -339,13 +278,7 @@ class PostgresTelemetryService:
             
             measurements = {}
             for row in result:
-                value = (
-                    row.numeric_value if row.numeric_value is not None
-                    else row.text_value if row.text_value is not None
-                    else row.boolean_value if row.boolean_value is not None
-                    else row.json_value
-                )
-                measurements[row.measurement_name] = value
+                measurements[row.measurement_name] = row.numeric_value
             
             return measurements if measurements else None
             
