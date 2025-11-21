@@ -20,11 +20,6 @@ def list_all_devices():
             device_dict = device.to_dict()
             # Hide API key in admin listing for security
             device_dict.pop("api_key", None)
-            # Add basic stats
-            device_dict["auth_records_count"] = DeviceAuth.query.filter_by(device_id=device.id).count()
-            device_dict["config_count"] = DeviceConfiguration.query.filter_by(
-                device_id=device.id, is_active=True
-            ).count()
             device_list.append(device_dict)
 
         return (
@@ -56,31 +51,13 @@ def list_all_devices():
 def get_device_details(device_id):
     """Get detailed device information including auth and config"""
     try:
-        device = Device.query.get_or_404(device_id)
-
-        # Get device auth records
-        auth_records = DeviceAuth.query.filter_by(device_id=device_id).all()
-        auth_list = []
-        for auth in auth_records:
-            auth_dict = {
-                "id": auth.id,
-                "is_active": auth.is_active,
-                "expires_at": auth.expires_at.isoformat() if auth.expires_at else None,
-                "created_at": auth.created_at.isoformat() if auth.created_at else None,
-                "last_used": auth.last_used.isoformat() if auth.last_used else None,
-                "usage_count": auth.usage_count,
-            }
-            auth_list.append(auth_dict)
-
-        # Get device configurations
-        configs = DeviceConfiguration.query.filter_by(device_id=device_id, is_active=True).all()
-        config_dict = {}
-        for config in configs:
-            config_dict[config.config_key] = {
-                "value": config.config_value,
-                "data_type": config.data_type,
-                "updated_at": (config.updated_at.isoformat() if config.updated_at else None),
-            }
+        device = Device.query.get(device_id)
+        
+        if not device:
+            return jsonify({
+                "error": "Device not found",
+                "message": f"No device found with ID: {device_id}"
+            }), 404
 
         device_dict = device.to_dict()
         # Hide API key for security
@@ -91,8 +68,6 @@ def get_device_details(device_id):
                 {
                     "status": "success",
                     "device": device_dict,
-                    "auth_records": auth_list,
-                    "configurations": config_dict,
                 }
             ),
             200,
@@ -116,7 +91,14 @@ def get_device_details(device_id):
 def update_device_status(device_id):
     """Update device status (active/inactive/maintenance)"""
     try:
-        device = Device.query.get_or_404(device_id)
+        device = Device.query.get(device_id)
+        
+        if not device:
+            return jsonify({
+                "error": "Device not found",
+                "message": f"No device found with ID: {device_id}"
+            }), 404
+        
         data = request.get_json()
 
         if not data or "status" not in data:
@@ -187,14 +169,6 @@ def get_system_stats():
         five_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
         online_devices = Device.query.filter(Device.last_seen >= five_minutes_ago, Device.status == "active").count()
 
-        # Auth statistics
-        total_auth_records = DeviceAuth.query.count()
-        active_auth_records = DeviceAuth.query.filter_by(is_active=True).count()
-
-        # Configuration statistics
-        total_configs = DeviceConfiguration.query.count()
-        active_configs = DeviceConfiguration.query.filter_by(is_active=True).count()
-
         return (
             jsonify(
                 {
@@ -208,15 +182,7 @@ def get_system_stats():
                         "online": online_devices,
                         "offline": active_devices - online_devices,
                     },
-                    "auth_stats": {
-                        "total_records": total_auth_records,
-                        "active_records": active_auth_records,
-                    },
-                    "config_stats": {
-                        "total_configs": total_configs,
-                        "active_configs": active_configs,
-                    },
-                    "telemetry_note": "Telemetry data is stored in IoTDB, not accessible via this API",
+                    "total_devices": total_devices,
                 }
             ),
             200,
@@ -240,10 +206,17 @@ def get_system_stats():
 def delete_device(device_id):
     """Delete a device and all related data"""
     try:
-        device = Device.query.get_or_404(device_id)
+        device = Device.query.get(device_id)
+        
+        if not device:
+            return jsonify({
+                "error": "Device not found",
+                "message": f"No device found with ID: {device_id}"
+            }), 404
+        
         device_name = device.name
 
-        # Delete related auth records and configurations (cascaded by relationships)
+        # Delete device
         db.session.delete(device)
         db.session.commit()
 
@@ -255,7 +228,6 @@ def delete_device(device_id):
                     "status": "success",
                     "message": f"Device {device_name} deleted successfully",
                     "device_id": device_id,
-                    "note": "Telemetry data in IoTDB is not automatically deleted",
                 }
             ),
             200,
