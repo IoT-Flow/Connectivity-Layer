@@ -631,7 +631,13 @@ def get_device_status_by_id(device_id):
     """
     try:
         # Get device from database
-        device = Device.query.filter_by(id=device_id).first_or_404()
+        device = Device.query.filter_by(id=device_id).first()
+        
+        if not device:
+            return jsonify({
+                "error": "Device not found",
+                "message": f"No device found with ID: {device_id}"
+            }), 404
 
         # Build response with basic device info
         response = {
