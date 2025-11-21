@@ -12,15 +12,6 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or "sqlite:///iotflow.db"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Redis Configuration
-    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-
-    # IoTDB Configuration
-    IOTDB_HOST = os.environ.get("IOTDB_HOST", "localhost")
-    IOTDB_PORT = int(os.environ.get("IOTDB_PORT", 6667))
-    IOTDB_USER = os.environ.get("IOTDB_USER", "root")
-    IOTDB_PASSWORD = os.environ.get("IOTDB_PASSWORD", "root")
-
     # API Configuration
     API_VERSION = os.environ.get("API_VERSION", "v1")
     MAX_DEVICES_PER_USER = int(os.environ.get("MAX_DEVICES_PER_USER", 100))
@@ -33,21 +24,6 @@ class Config:
     # Logging
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
     LOG_FILE = os.environ.get("LOG_FILE", "logs/iotflow.log")
-
-    # MQTT Configuration (Server connects anonymously)
-    MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
-    MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
-    MQTT_TLS_PORT = int(os.environ.get("MQTT_TLS_PORT", 8883))
-    MQTT_WEBSOCKET_PORT = int(os.environ.get("MQTT_WEBSOCKET_PORT", 9001))
-    # Note: No username/password - server connects anonymously to MQTT broker
-    MQTT_CLIENT_ID = os.environ.get("MQTT_CLIENT_ID", "iotflow_server")
-    MQTT_KEEPALIVE = int(os.environ.get("MQTT_KEEPALIVE", 60))
-    MQTT_CLEAN_SESSION = os.environ.get("MQTT_CLEAN_SESSION", "True").lower() == "true"
-
-    # MQTT TLS/SSL Configuration
-    MQTT_USE_TLS = os.environ.get("MQTT_USE_TLS", "False").lower() == "true"
-    MQTT_CA_CERT_PATH = os.environ.get("MQTT_CA_CERT_PATH")
-    MQTT_CERT_FILE_PATH = os.environ.get("MQTT_CERT_FILE_PATH")
     MQTT_KEY_FILE_PATH = os.environ.get("MQTT_KEY_FILE_PATH")
     MQTT_TLS_INSECURE = os.environ.get("MQTT_TLS_INSECURE", "False").lower() == "true"
 

@@ -7,7 +7,6 @@ from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime, timezone
 from src.services.postgres_telemetry import PostgresTelemetryService
 from src.models import Device
-from src.metrics import TELEMETRY_MESSAGES
 
 # Create blueprint for telemetry routes
 telemetry_bp = Blueprint("telemetry", __name__, url_prefix="/api/v1/telemetry")
@@ -81,8 +80,6 @@ def store_telemetry():
         )
 
         if success:
-            # Increment telemetry messages counter
-            TELEMETRY_MESSAGES.inc()
             # Update device last_seen
             device.update_last_seen()
 

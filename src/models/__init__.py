@@ -64,7 +64,15 @@ class User(db.Model):
             "last_login": self.last_login.isoformat() if self.last_login else None,
         }
 
-    # Authentication methods can be added here
+    def set_password(self, password):
+        """Hash and set user password"""
+        from werkzeug.security import generate_password_hash
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Check if provided password matches the hash"""
+        from werkzeug.security import check_password_hash
+        return check_password_hash(self.password_hash, password)
 
 
 class Device(db.Model):
@@ -96,13 +104,7 @@ class Device(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     # Relationships
-    auth_records = db.relationship("DeviceAuth", backref="device", lazy="dynamic", cascade="all, delete-orphan")
-    configurations = db.relationship(
-        "DeviceConfiguration",
-        backref="device",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
+    # Removed: auth_records, configurations (tables no longer exist)
 
     def __repr__(self):
         return f"<Device {self.name}>"
@@ -129,35 +131,13 @@ class Device(db.Model):
         self.last_seen = datetime.now(timezone.utc)
         db.session.commit()
 
-        # Also update Redis cache if available
-        from flask import current_app
-
-        if hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
-            current_app.device_status_cache.update_device_last_seen(self.id)
-            current_app.device_status_cache.set_device_status(self.id, "online")
-
     def set_status(self, status):
-        """Set device status and update Redis cache"""
+        """Set device status"""
         self.status = status
         db.session.commit()
 
-        # Also update Redis cache if available
-        from flask import current_app
-
-        if hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
-            current_app.device_status_cache.set_device_status(self.id, status)
-
     def get_status(self):
-        """Get device status with Redis cache priority"""
-        from flask import current_app
-
-        # Try to get from Redis cache first
-        if hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
-            redis_status = current_app.device_status_cache.get_device_status(self.id)
-            if redis_status:
-                return redis_status
-
-        # Fall back to database status
+        """Get device status from database"""
         return self.status
 
     def is_authenticated(self, api_key):
@@ -169,75 +149,7 @@ class Device(db.Model):
         """Authenticate device by API key"""
         return Device.query.filter_by(api_key=api_key, status="active").first()
 
-    @staticmethod
-    def authenticate_by_mqtt_credentials(username, password):
-        """Authenticate device by MQTT username/password (username=device_id, password=api_key)"""
-        try:
-            device_id = int(username)
-            device = Device.query.filter_by(id=device_id, status="active").first()
-            if device and device.api_key == password:
-                return device
-        except (ValueError, TypeError):
-            pass
-        return None
-
-
-class DeviceAuth(db.Model):
-    """Device authentication model for API key management"""
-
-    __tablename__ = "device_auth"
-
-    id = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
-    api_key_hash = db.Column(db.String(128), nullable=False)  # Hashed version of API key
-    is_active = db.Column(db.Boolean, default=True)
-    expires_at = db.Column(db.DateTime(timezone=True))  # Optional expiration
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    last_used = db.Column(db.DateTime(timezone=True))
-    usage_count = db.Column(db.Integer, default=0)
-
-    # Indexes
-    __table_args__ = (
-        db.Index("idx_api_key_hash", "api_key_hash"),
-        db.Index("idx_device_auth", "device_id", "is_active"),
-    )
-
-    def __repr__(self):
-        return f"<DeviceAuth device_id={self.device_id} active={self.is_active}>"
-
-    def increment_usage(self):
-        """Increment usage counter and update last used timestamp"""
-        self.usage_count += 1
-        self.last_used = datetime.now(timezone.utc)
-        db.session.commit()
-
-
-class DeviceConfiguration(db.Model):
-    """Device configuration model for storing device-specific settings"""
-
-    __tablename__ = "device_configurations"
-
-    id = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
-    config_key = db.Column(db.String(100), nullable=False)
-    config_value = db.Column(db.Text)
-    data_type = db.Column(db.String(20), default="string")  # string, integer, float, boolean, json
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = db.Column(
-        db.DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
-
-    # Unique constraint to prevent duplicate config keys per device
-    __table_args__ = (
-        db.UniqueConstraint("device_id", "config_key", name="uq_device_config"),
-        db.Index("idx_device_config", "device_id", "is_active"),
-    )
-
-    def __repr__(self):
-        return f"<DeviceConfiguration device_id={self.device_id} key={self.config_key}>"
+# Removed DeviceAuth and DeviceConfiguration models - tables no longer exist
 
 
 class Chart(db.Model):
@@ -316,7 +228,4 @@ class ChartMeasurement(db.Model):
     )
 
 
-# Create the DeviceControl model after all other models are defined
-from src.models.device_control import create_device_control_model  # noqa: E402
 
-DeviceControl = create_device_control_model(db)

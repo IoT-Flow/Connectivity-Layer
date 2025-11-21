@@ -27,8 +27,7 @@ class HealthMonitor:
             # Database health
             health_data["checks"]["database"] = HealthMonitor._check_database()
 
-            # Redis health
-            health_data["checks"]["redis"] = HealthMonitor._check_redis()
+            # Redis removed - using database only
 
             # IoTDB health
             health_data["checks"]["iotdb"] = HealthMonitor._check_iotdb()
@@ -75,33 +74,7 @@ class HealthMonitor:
         except Exception as e:
             return {"healthy": False, "error": str(e), "status": "disconnected"}
 
-    @staticmethod
-    def _check_redis():
-        """Check Redis connectivity and performance"""
-        try:
-            if hasattr(current_app, "redis_client"):
-                start_time = time.time()
-                current_app.redis_client.ping()
-                response_time = (time.time() - start_time) * 1000  # ms
-
-                # Get Redis info
-                info = current_app.redis_client.info()
-
-                return {
-                    "healthy": True,
-                    "response_time_ms": round(response_time, 2),
-                    "status": "connected",
-                    "memory_usage_mb": round(info.get("used_memory", 0) / 1024 / 1024, 2),
-                    "connected_clients": info.get("connected_clients", 0),
-                }
-            else:
-                return {
-                    "healthy": False,
-                    "status": "not_configured",
-                    "message": "Redis client not configured",
-                }
-        except Exception as e:
-            return {"healthy": False, "error": str(e), "status": "disconnected"}
+    # Redis check removed - using database only
 
     @staticmethod
     def _check_iotdb():
@@ -255,12 +228,7 @@ def device_heartbeat_monitor():
             if hasattr(request, "device"):
                 device = request.device
 
-                # Update device heartbeat in Redis
-                if hasattr(current_app, "redis_client"):
-                    try:
-                        current_app.redis_client.setex(f"heartbeat:{device.id}", 300, "online")  # 5 minutes TTL
-                    except Exception as e:
-                        current_app.logger.error(f"Redis heartbeat error: {str(e)}")
+                # Device heartbeat managed in database only
 
                 # Update last_seen in database
                 device.update_last_seen()
@@ -301,14 +269,7 @@ def request_metrics_middleware():
                 f"success={success} ip={request.remote_addr}"
             )
 
-            # Store metrics in Redis if available
-            if hasattr(current_app, "redis_client"):
-                try:
-                    metrics_key = f"metrics:{request.method}:{request.endpoint or 'unknown'}"
-                    current_app.redis_client.lpush(metrics_key, f"{status_code}:{duration:.3f}")
-                    current_app.redis_client.ltrim(metrics_key, 0, 999)  # Keep last 1000 entries
-                except Exception as e:
-                    current_app.logger.error(f"Metrics storage error: {str(e)}")
+            # Metrics storage removed with Redis
 
             return response
 

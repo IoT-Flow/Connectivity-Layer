@@ -97,9 +97,6 @@ locust/
 # Simulators
 simulators/
 
-# Grafana configs
-grafana/
-
 # ESP32 examples
 esp32_examples/
 
