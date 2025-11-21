@@ -567,7 +567,7 @@ def update_device_config():
 @request_metrics_middleware()
 def get_all_device_statuses():
     """
-    Get status of all devices using Redis cache for better performance
+    Get status of all devices
     Returns condensed device info with online/offline status for dashboard display
     """
     try:
@@ -689,5 +689,3 @@ def is_device_online(device):
 
     return is_online
 
-
-# Redis sync function removed - using database only

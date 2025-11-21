@@ -27,11 +27,6 @@ class HealthMonitor:
             # Database health
             health_data["checks"]["database"] = HealthMonitor._check_database()
 
-            # Redis removed - using database only
-
-            # IoTDB health
-            health_data["checks"]["iotdb"] = HealthMonitor._check_iotdb()
-
             # System metrics
             health_data["metrics"]["system"] = HealthMonitor._get_system_metrics()
 
@@ -73,54 +68,6 @@ class HealthMonitor:
             }
         except Exception as e:
             return {"healthy": False, "error": str(e), "status": "disconnected"}
-
-    # Redis check removed - using database only
-
-    @staticmethod
-    def _check_iotdb():
-        """Check IoTDB connectivity and performance"""
-        try:
-            from src.config.iotdb_config import iotdb_config
-
-            start_time = time.time()
-            is_connected = iotdb_config.is_connected()
-            response_time = (time.time() - start_time) * 1000  # ms
-
-            if is_connected and iotdb_config.session:
-                # Test basic query to ensure IoTDB is responsive
-                try:
-                    query_start = time.time()
-                    # Simple test query - check if we can execute basic operations
-                    session_data_set = iotdb_config.session.execute_query_statement("SHOW DATABASES")
-                    query_time = (time.time() - query_start) * 1000
-                    session_data_set.close_operation_handle()
-
-                    return {
-                        "healthy": True,
-                        "response_time_ms": round(response_time, 2),
-                        "query_time_ms": round(query_time, 2),
-                        "status": "connected",
-                        "host": iotdb_config.host,
-                        "port": iotdb_config.port,
-                        "database": iotdb_config.database,
-                    }
-                except Exception as query_error:
-                    return {
-                        "healthy": False,
-                        "status": "connected_but_unresponsive",
-                        "error": f"Query failed: {str(query_error)}",
-                        "response_time_ms": round(response_time, 2),
-                    }
-            else:
-                return {
-                    "healthy": False,
-                    "status": "disconnected",
-                    "error": "IoTDB session not available",
-                    "host": iotdb_config.host,
-                    "port": iotdb_config.port,
-                }
-        except Exception as e:
-            return {"healthy": False, "error": str(e), "status": "error"}
 
     @staticmethod
     def _get_system_metrics():
@@ -164,9 +111,9 @@ class HealthMonitor:
                 Device.last_seen >= online_threshold, Device.status == "active"
             ).count()
 
-            # Telemetry metrics (now stored in IoTDB)
-            telemetry_last_hour = HealthMonitor._get_telemetry_count_iotdb("-1h")
-            telemetry_last_day = HealthMonitor._get_telemetry_count_iotdb("-1d")
+            # Telemetry metrics (stored in PostgreSQL)
+            telemetry_last_hour = 0  # Can be implemented with PostgreSQL query
+            telemetry_last_day = 0  # Can be implemented with PostgreSQL query
 
             return {
                 "total_devices": total_devices,
@@ -184,39 +131,7 @@ class HealthMonitor:
                 print(f"Device metrics error: {str(e)}")
             return {"error": str(e)}
 
-    @staticmethod
-    def _get_telemetry_count_iotdb(time_range: str) -> int:
-        """Get telemetry count from IoTDB for specified time range"""
-        try:
-            from src.config.iotdb_config import iotdb_config
 
-            if not iotdb_config.is_connected():
-                return 0
-
-            # For now, return total count regardless of time range
-            # TODO: Implement proper time-based filtering when IoTDB query syntax is clarified
-            query = f"SHOW TIMESERIES {iotdb_config.database}.devices.**"
-
-            session_data_set = iotdb_config.session.execute_query_statement(query)
-
-            timeseries_count = 0
-            while session_data_set.has_next():
-                session_data_set.next()
-                timeseries_count += 1
-
-            session_data_set.close_operation_handle()
-
-            # Rough estimate: assume each timeseries has some data points
-            # This is a simplified approach until proper count aggregation is implemented
-            return timeseries_count
-
-        except Exception as e:
-            try:
-                current_app.logger.error(f"Error getting telemetry count from IoTDB: {str(e)}")
-            except Exception:
-                # Fallback if current_app is not available
-                print(f"Error getting telemetry count from IoTDB: {str(e)}")
-            return 0
 
 
 def device_heartbeat_monitor():
@@ -268,8 +183,6 @@ def request_metrics_middleware():
                 f"status={status_code} duration={duration:.3f}s "
                 f"success={success} ip={request.remote_addr}"
             )
-
-            # Metrics storage removed with Redis
 
             return response
 

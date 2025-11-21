@@ -68,7 +68,7 @@ def authenticate_device(f):
 
 
 def rate_limit_device(max_requests=60, window=60, per_device=True):
-    """Advanced rate limiting decorator with Redis backend"""
+    """Advanced rate limiting decorator (currently disabled)"""
 
     def decorator(f):
         @wraps(f)
@@ -87,7 +87,7 @@ def rate_limit_device(max_requests=60, window=60, per_device=True):
             window_key = f"{limit_key}:{current_time // window}"
 
             try:
-                # Rate limiting disabled (Redis removed)
+                # Rate limiting currently disabled
                 # Can be implemented with database or nginx if needed
                 current_app.logger.debug(f"Rate limiting bypassed for {window_key}")
                 return f(*args, **kwargs)
