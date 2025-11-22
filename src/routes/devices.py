@@ -129,6 +129,120 @@ def register_device():
         )
 
 
+@device_bp.route("/user/<user_id>", methods=["GET"])
+@security_headers_middleware()
+@request_metrics_middleware()
+def get_user_devices(user_id):
+    """Get all devices for a specific user
+    ---
+    tags:
+      - Devices
+    summary: Get user devices
+    description: Get list of all devices belonging to a specific user
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: User UUID
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [active, inactive, maintenance]
+        description: Filter by device status
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+    responses:
+      200:
+        description: List of user devices
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: success
+                user_id:
+                  type: string
+                total_devices:
+                  type: integer
+                devices:
+                  type: array
+                  items:
+                    type: object
+      404:
+        description: User not found
+    """
+    try:
+        # Find user by user_id
+        user = User.query.filter_by(user_id=user_id).first()
+        
+        if not user:
+            return jsonify({
+                "error": "User not found",
+                "message": f"No user found with ID: {user_id}"
+            }), 404
+        
+        # Get query parameters
+        status_filter = request.args.get('status')
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Build query
+        query = Device.query.filter_by(user_id=user.id)
+        
+        # Apply status filter if provided
+        if status_filter:
+            query = query.filter_by(status=status_filter)
+        
+        # Get total count before pagination
+        total_devices = query.count()
+        
+        # Apply pagination
+        devices = query.limit(limit).offset(offset).all()
+        
+        # Format response
+        device_list = []
+        for device in devices:
+            device_dict = device.to_dict()
+            # Don't include API key in list response for security
+            device_dict.pop('api_key', None)
+            device_list.append(device_dict)
+        
+        current_app.logger.info(f"Retrieved {len(device_list)} devices for user: {user.username}")
+        
+        return jsonify({
+            "status": "success",
+            "user_id": user_id,
+            "username": user.username,
+            "total_devices": total_devices,
+            "devices": device_list,
+            "meta": {
+                "limit": limit,
+                "offset": offset,
+                "returned": len(device_list)
+            }
+        }), 200
+    
+    except Exception as e:
+        current_app.logger.error(f"Error getting user devices: {str(e)}")
+        return jsonify({
+            "error": "Failed to retrieve devices",
+            "message": "An error occurred while retrieving user devices"
+        }), 500
+
+
 @device_bp.route("/status", methods=["GET"])
 @security_headers_middleware()
 @request_metrics_middleware()
