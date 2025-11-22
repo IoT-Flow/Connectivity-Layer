@@ -14,7 +14,50 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 @auth_bp.route("/login", methods=["POST"])
 @security_headers_middleware()
 def login():
-    """User login endpoint"""
+    """User login endpoint
+    ---
+    tags:
+      - Authentication
+    summary: User login
+    description: Authenticate user and receive JWT token
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - username
+              - password
+            properties:
+              username:
+                type: string
+                example: testuser
+              password:
+                type: string
+                example: password123
+    responses:
+      200:
+        description: Login successful
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: success
+                message:
+                  type: string
+                  example: Login successful
+                token:
+                  type: string
+                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                user:
+                  type: object
+      401:
+        description: Invalid credentials
+    """
     try:
         data = request.get_json()
         
@@ -77,7 +120,53 @@ def login():
 @auth_bp.route("/register", methods=["POST"])
 @security_headers_middleware()
 def register():
-    """User registration endpoint"""
+    """User registration endpoint
+    ---
+    tags:
+      - Authentication
+    summary: Register new user
+    description: Create a new user account
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - username
+              - email
+              - password
+            properties:
+              username:
+                type: string
+                minLength: 3
+                example: john_doe
+              email:
+                type: string
+                format: email
+                example: john@example.com
+              password:
+                type: string
+                minLength: 6
+                example: secure_password123
+    responses:
+      201:
+        description: User created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: success
+                message:
+                  type: string
+                user:
+                  type: object
+      400:
+        description: Invalid input
+    """
     try:
         data = request.get_json()
         
