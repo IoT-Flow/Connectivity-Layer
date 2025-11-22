@@ -86,7 +86,7 @@ class TestDeviceModel:
             assert device.api_key is not None
             assert device.name == 'Test Device'
             assert device.device_type == 'sensor'
-            assert device.status == 'active'
+            assert device.status == 'inactive'  # New devices are inactive by default
             assert device.user_id == test_user['id']
             assert device.created_at is not None
     
@@ -123,7 +123,7 @@ class TestDeviceModel:
             assert device_dict['device_type'] == 'sensor'
             assert device_dict['description'] == 'Test description'
             assert device_dict['location'] == 'Test location'
-            assert device_dict['status'] == 'active'
+            assert device_dict['status'] == 'inactive'  # New devices are inactive by default
             assert 'api_key' not in device_dict  # Should not expose API key
             assert 'created_at' in device_dict
     
@@ -148,16 +148,17 @@ class TestDeviceModel:
             db.session.add(device)
             db.session.commit()
             
+            assert device.status == 'inactive'  # New devices are inactive by default
+            
+            device.set_status('active')
+            
             assert device.status == 'active'
-            
-            device.set_status('inactive')
-            
-            assert device.status == 'inactive'
     
     def test_device_authentication(self, app, test_user):
         """Test device authentication with API key"""
         with app.app_context():
             device = Device(name='Test Device', device_type='sensor', user_id=test_user['id'])
+            device.status = 'active'  # Set to active for authentication test
             db.session.add(device)
             db.session.commit()
             
@@ -186,12 +187,13 @@ class TestDeviceModel:
         """Test static method to authenticate device by API key"""
         with app.app_context():
             device = Device(name='Test Device', device_type='sensor', user_id=test_user['id'])
+            device.status = 'active'  # Set to active for authentication test
             db.session.add(device)
             db.session.commit()
             
             api_key = device.api_key
             
-            # Should find device by API key
+            # Should find device by API key (only active devices)
             found_device = Device.authenticate_by_api_key(api_key)
             assert found_device is not None
             assert found_device.id == device.id
@@ -204,14 +206,14 @@ class TestDeviceModel:
 class TestDeviceRegistration:
     """Test device registration endpoints"""
     
-    def test_register_device_endpoint_exists(self, client):
+    def test_register_device_endpoint_exists(self, client, test_user):
         """Test that POST /api/v1/devices/register endpoint exists"""
         response = client.post(
             '/api/v1/devices/register',
+            headers={'X-User-ID': test_user['user_id']},
             json={
                 'name': 'New Device',
-                'device_type': 'sensor',
-                'user_id': 'test_user_id'
+                'device_type': 'sensor'
             }
         )
         
@@ -222,10 +224,10 @@ class TestDeviceRegistration:
         """Test successful device registration"""
         response = client.post(
             '/api/v1/devices/register',
+            headers={'X-User-ID': test_user['user_id']},
             json={
                 'name': 'New Device',
-                'device_type': 'sensor',
-                'user_id': test_user['user_id']
+                'device_type': 'sensor'
             }
         )
         
@@ -243,9 +245,9 @@ class TestDeviceRegistration:
         """Test registration with missing name"""
         response = client.post(
             '/api/v1/devices/register',
+            headers={'X-User-ID': test_user['user_id']},
             json={
-                'device_type': 'sensor',
-                'user_id': test_user['user_id']
+                'device_type': 'sensor'
             }
         )
         
@@ -253,7 +255,7 @@ class TestDeviceRegistration:
         assert response.status_code == 400
     
     def test_register_device_missing_user_id(self, client):
-        """Test registration with missing user_id"""
+        """Test registration with missing user_id header"""
         response = client.post(
             '/api/v1/devices/register',
             json={
@@ -262,17 +264,17 @@ class TestDeviceRegistration:
             }
         )
         
-        # Should return 400 Bad Request
-        assert response.status_code == 400
+        # Should return 401 Unauthorized (missing header)
+        assert response.status_code == 401
     
     def test_register_device_invalid_user(self, client):
         """Test registration with non-existent user"""
         response = client.post(
             '/api/v1/devices/register',
+            headers={'X-User-ID': 'nonexistent_user_id'},
             json={
                 'name': 'New Device',
-                'device_type': 'sensor',
-                'user_id': 'nonexistent_user_id'
+                'device_type': 'sensor'
             }
         )
         
@@ -283,10 +285,10 @@ class TestDeviceRegistration:
         """Test registration with optional fields"""
         response = client.post(
             '/api/v1/devices/register',
+            headers={'X-User-ID': test_user['user_id']},
             json={
                 'name': 'New Device',
                 'device_type': 'sensor',
-                'user_id': test_user['user_id'],
                 'description': 'Test description',
                 'location': 'Test location',
                 'firmware_version': '1.0.0'

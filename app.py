@@ -38,7 +38,7 @@ def create_app(config_name=None):
     CORS(app, 
          origins=["http://localhost:3000", "http://127.0.0.1:3000"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization", "X-API-Key"],
+         allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-User-ID"],
          expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"]
     )
     

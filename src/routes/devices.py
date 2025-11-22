@@ -24,7 +24,7 @@ device_bp = Blueprint("devices", __name__, url_prefix="/api/v1/devices")
 @security_headers_middleware()
 @request_metrics_middleware()
 @rate_limit_device(max_requests=10, window=300, per_device=False)  # 10 registrations per 5 minutes per IP
-@validate_json_payload(["name", "device_type", "user_id"])
+@validate_json_payload(["name", "device_type"])
 @input_sanitization_middleware()
 def register_device():
     """Register a new IoT device
@@ -32,7 +32,15 @@ def register_device():
     tags:
       - Devices
     summary: Register new device
-    description: Register a new IoT device with user authentication
+    description: Register a new IoT device with user authentication via X-User-ID header
+    parameters:
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+        description: User ID for authentication
+        example: fd596e05-a937-4eea-bbaf-2779686b9f1b
     requestBody:
       required: true
       content:
@@ -42,7 +50,6 @@ def register_device():
             required:
               - name
               - device_type
-              - user_id
             properties:
               name:
                 type: string
@@ -50,21 +57,43 @@ def register_device():
               device_type:
                 type: string
                 example: sensor
-              user_id:
+              description:
                 type: string
-                example: fd596e05-a937-4eea-bbaf-2779686b9f1b
+                example: Temperature and humidity sensor
+              location:
+                type: string
+                example: Living Room
+              firmware_version:
+                type: string
+                example: 1.0.0
+              hardware_version:
+                type: string
+                example: v2.1
     responses:
       201:
         description: Device registered successfully
       400:
         description: Invalid input
+      401:
+        description: Authentication failed
     """
     try:
         data = request.validated_json
 
-        # Verify user by user_id
-        user_id = data["user_id"]
+        # Get user_id from header
+        user_id = request.headers.get("X-User-ID")
+        if not user_id:
+            return (
+                jsonify(
+                    {
+                        "error": "Authentication required",
+                        "message": "X-User-ID header is required",
+                    }
+                ),
+                401,
+            )
 
+        # Verify user exists and is active using user_id directly
         user = User.query.filter_by(user_id=user_id, is_active=True).first()
         if not user:
             return (
@@ -77,8 +106,8 @@ def register_device():
                 401,
             )
 
-        # Check if device name already exists
-        existing_device = Device.query.filter_by(name=data["name"]).first()
+        # Check if device name already exists for this user
+        existing_device = Device.query.filter_by(name=data["name"], user_id=user.id).first()
         if existing_device:
             return (
                 jsonify(
@@ -90,7 +119,7 @@ def register_device():
                 409,
             )
 
-        # Create new device associated with the authenticated user
+        # Create new device using the user's internal ID
         device = Device(
             name=data["name"],
             description=data.get("description", ""),
@@ -98,13 +127,13 @@ def register_device():
             location=data.get("location", ""),
             firmware_version=data.get("firmware_version", ""),
             hardware_version=data.get("hardware_version", ""),
-            user_id=user.id,  # Associate device with authenticated user
+            user_id=user.id,  # Use the internal user ID from the query
         )
 
         db.session.add(device)
         db.session.commit()
 
-        current_app.logger.info(f"New device registered: {device.name} (ID: {device.id}) by user: {user.username}")
+        current_app.logger.info(f"New device registered: {device.name} (ID: {device.id}) by user_id: {user_id}")
 
         response_data = device.to_dict()
         response_data["api_key"] = device.api_key  # Include API key in registration response
@@ -739,9 +768,58 @@ def update_device_config():
 @request_metrics_middleware()
 def get_all_device_statuses():
     """
-    Get status of all devices
+    Get status of all devices (Admin only)
     Returns condensed device info with online/offline status for dashboard display
+    ---
+    tags:
+      - Devices
+    summary: Get all device statuses (Admin)
+    description: Get status of all devices in the system (requires admin authentication)
+    security:
+      - AdminAuth: []
+    parameters:
+      - name: Authorization
+        in: header
+        required: true
+        schema:
+          type: string
+        description: Admin token (format: "admin <token>")
+        example: admin your_admin_token
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+    responses:
+      200:
+        description: List of all device statuses
+      401:
+        description: Admin token required
+      403:
+        description: Invalid admin token
     """
+    # Check for admin authentication
+    from src.middleware.auth import require_admin_token
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("admin "):
+        return jsonify({
+            "error": "Admin authentication required",
+            "message": "This endpoint requires admin privileges"
+        }), 401
+    
+    import os
+    ADMIN_TOKEN = os.environ.get("IOTFLOW_ADMIN_TOKEN", "test")
+    token = auth_header.split(" ", 1)[1] if len(auth_header.split(" ", 1)) > 1 else ""
+    if token != ADMIN_TOKEN:
+        return jsonify({
+            "error": "Invalid admin token",
+            "message": "The provided admin token is invalid"
+        }), 403
     try:
         # Get optional limit/offset parameters
         limit = request.args.get("limit", default=100, type=int)
@@ -800,8 +878,53 @@ def get_all_device_statuses():
 def get_device_status_by_id(device_id):
     """
     Get status of a specific device from database
+    Requires X-User-ID header for authentication, returns device status with API key
+    ---
+    tags:
+      - Devices
+    summary: Get device status
+    description: Get status of a specific device (requires user ID, returns API key)
+    parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Device ID
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+        description: User ID (UUID)
+        example: adc513e4ab554b3f84900affe582beb8
+    responses:
+      200:
+        description: Device status retrieved successfully (includes API key)
+      401:
+        description: Authentication required
+      403:
+        description: Forbidden - device doesn't belong to user
+      404:
+        description: Device not found
     """
     try:
+        # Get X-User-ID from header
+        user_id = request.headers.get("X-User-ID")
+        if not user_id:
+            return jsonify({
+                "error": "Authentication required",
+                "message": "X-User-ID header is required"
+            }), 401
+        
+        # Verify user exists and is active
+        user = User.query.filter_by(user_id=user_id, is_active=True).first()
+        if not user:
+            return jsonify({
+                "error": "Authentication failed",
+                "message": "Invalid user_id or user is not active"
+            }), 401
+        
         # Get device from database
         device = Device.query.filter_by(id=device_id).first()
         
@@ -810,20 +933,31 @@ def get_device_status_by_id(device_id):
                 "error": "Device not found",
                 "message": f"No device found with ID: {device_id}"
             }), 404
+        
+        # Verify device belongs to the user
+        if device.user_id != user.id:
+            return jsonify({
+                "error": "Forbidden",
+                "message": "This device does not belong to the specified user"
+            }), 403
 
-        # Build response with basic device info
+        # Build response with device info including API key
         response = {
             "id": device.id,
             "name": device.name,
             "device_type": device.device_type,
             "status": device.status,
+            "api_key": device.api_key,  # Include API key in response
+            "location": device.location,
+            "firmware_version": device.firmware_version,
+            "hardware_version": device.hardware_version,
+            "created_at": device.created_at.isoformat() if device.created_at else None,
+            "updated_at": device.updated_at.isoformat() if device.updated_at else None,
         }
 
-        # Get device status from database
+        # Get device online status from database
         response["is_online"] = is_device_online(device)
         response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
-        response["status_source"] = "database"
-        response["last_seen_source"] = "database"
 
         return jsonify({"status": "success", "device": response}), 200
 

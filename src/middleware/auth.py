@@ -45,12 +45,27 @@ def authenticate_device(f):
                 401,
             )
 
-        if device.status != "active":
+        # Auto-activate device on first data submission
+        if device.status == "inactive":
+            from src.models import db
+            from datetime import datetime, timezone
+            
+            device.status = "active"
+            device.updated_at = datetime.now(timezone.utc)
+            db.session.commit()
+            
+            current_app.logger.info(
+                f"Device auto-activated: {device.name} (ID: {device.id}) - "
+                f"First telemetry submission received"
+            )
+        
+        # Check if device is in maintenance mode
+        if device.status == "maintenance":
             return (
                 jsonify(
                     {
-                        "error": "Device inactive",
-                        "message": f"Device is currently {device.status}",
+                        "error": "Device in maintenance",
+                        "message": "Device is currently in maintenance mode",
                     }
                 ),
                 403,

@@ -88,7 +88,7 @@ class Device(db.Model):
     description = db.Column(db.Text)
     device_type = db.Column(db.String(50), nullable=False, default="sensor")
     api_key = db.Column(db.String(64), unique=True, nullable=False, default=generate_api_key)
-    status = db.Column(db.String(20), nullable=False, default="active")  # active, inactive, maintenance
+    status = db.Column(db.String(20), nullable=False, default="inactive")  # active, inactive, maintenance
     location = db.Column(db.String(200))
     firmware_version = db.Column(db.String(20))
     hardware_version = db.Column(db.String(20))
