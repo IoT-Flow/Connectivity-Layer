@@ -10,7 +10,20 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
 @admin_bp.route("/devices", methods=["GET"])
 @require_admin_token
 def list_all_devices():
-    """List all devices with basic information"""
+    """List all devices with basic information
+    ---
+    tags:
+      - Admin
+    summary: List all devices (admin)
+    description: Get list of all devices with admin privileges
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: List of all devices
+      401:
+        description: Unauthorized - admin token required
+    """
     try:
         # Get all devices with their basic info
         devices = Device.query.all()
@@ -49,7 +62,26 @@ def list_all_devices():
 @admin_bp.route("/devices/<int:device_id>", methods=["GET"])
 @require_admin_token
 def get_device_details(device_id):
-    """Get detailed device information including auth and config"""
+    """Get detailed device information including auth and config
+    ---
+    tags:
+      - Admin
+    summary: Get device details (admin)
+    description: Get detailed device information with admin privileges
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      200:
+        description: Device details
+      404:
+        description: Device not found
+    """
     try:
         device = Device.query.get(device_id)
         
@@ -157,7 +189,18 @@ def update_device_status(device_id):
 @admin_bp.route("/stats", methods=["GET"])
 @require_admin_token
 def get_system_stats():
-    """Get system statistics"""
+    """Get system statistics
+    ---
+    tags:
+      - Admin
+    summary: Get system statistics
+    description: Get comprehensive system statistics (admin only)
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: System statistics
+    """
     try:
         # Device statistics
         total_devices = Device.query.count()

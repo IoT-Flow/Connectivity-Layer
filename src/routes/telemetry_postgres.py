@@ -156,7 +156,43 @@ def store_telemetry():
 
 @telemetry_bp.route("/<int:device_id>", methods=["GET"])
 def get_device_telemetry(device_id):
-    """Get telemetry data for a specific device"""
+    """Get telemetry data for a specific device
+    ---
+    tags:
+      - Telemetry
+    summary: Get device telemetry
+    description: Retrieve telemetry data for a specific device
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: start
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: end
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: measurement
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+    responses:
+      200:
+        description: Telemetry data retrieved
+    """
     device, err, code = get_authenticated_device(device_id)
     if err:
         return err, code
@@ -187,7 +223,28 @@ def get_device_telemetry(device_id):
 
 @telemetry_bp.route("/<int:device_id>/latest", methods=["GET"])
 def get_device_latest_telemetry(device_id):
-    """Get the latest telemetry data for a device"""
+    """Get the latest telemetry data for a device
+    ---
+    tags:
+      - Telemetry
+    summary: Get latest telemetry
+    description: Get the most recent telemetry data for a device
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: measurement
+        in: query
+        schema:
+          type: string
+    responses:
+      200:
+        description: Latest telemetry data
+    """
     device, err, code = get_authenticated_device(device_id)
     if err:
         return err, code

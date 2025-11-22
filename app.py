@@ -149,7 +149,16 @@ def create_app(config_name=None):
     @app.route('/status', methods=['GET'])
     @security_headers_middleware()
     def system_status():
-        """Detailed system status and metrics"""
+        """Detailed system status and metrics
+        ---
+        tags:
+          - Health
+        summary: System status
+        description: Get detailed system status including database, metrics, and device statistics
+        responses:
+          200:
+            description: Detailed system status
+        """
         return jsonify(HealthMonitor.get_system_health())
     
     # Root endpoint

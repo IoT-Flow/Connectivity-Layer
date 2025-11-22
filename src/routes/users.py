@@ -83,7 +83,25 @@ def create_user():
 @user_bp.route("/<user_id>", methods=["GET"])
 @security_headers_middleware()
 def get_user(user_id):
-    """Get user by ID"""
+    """Get user by ID
+    ---
+    tags:
+      - Users
+    summary: Get user details
+    description: Get details of a specific user by ID
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: User UUID
+    responses:
+      200:
+        description: User details
+      404:
+        description: User not found
+    """
     try:
         user = User.query.filter_by(user_id=user_id).first()
         
@@ -109,7 +127,27 @@ def get_user(user_id):
 @user_bp.route("", methods=["GET"])
 @security_headers_middleware()
 def list_users():
-    """List all users"""
+    """List all users
+    ---
+    tags:
+      - Users
+    summary: List users
+    description: Get list of all users with pagination
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+    responses:
+      200:
+        description: List of users
+    """
     try:
         # Get pagination parameters
         limit = request.args.get('limit', 100, type=int)
@@ -139,7 +177,38 @@ def list_users():
 @user_bp.route("/<user_id>", methods=["PUT"])
 @security_headers_middleware()
 def update_user(user_id):
-    """Update user information"""
+    """Update user information
+    ---
+    tags:
+      - Users
+    summary: Update user
+    description: Update user information
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+              email:
+                type: string
+              password:
+                type: string
+              is_active:
+                type: boolean
+    responses:
+      200:
+        description: User updated
+      404:
+        description: User not found
+    """
     try:
         user = User.query.filter_by(user_id=user_id).first()
         
@@ -206,7 +275,24 @@ def update_user(user_id):
 @user_bp.route("/<user_id>", methods=["DELETE"])
 @security_headers_middleware()
 def delete_user(user_id):
-    """Delete or deactivate a user"""
+    """Delete or deactivate a user
+    ---
+    tags:
+      - Users
+    summary: Delete user
+    description: Deactivate a user account (soft delete)
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: User deactivated
+      404:
+        description: User not found
+    """
     try:
         user = User.query.filter_by(user_id=user_id).first()
         
