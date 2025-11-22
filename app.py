@@ -105,7 +105,35 @@ def create_app(config_name=None):
     @app.route('/health', methods=['GET'])
     @security_headers_middleware()
     def health_check():
-        """Comprehensive health check endpoint"""
+        """Health check endpoint
+        ---
+        tags:
+          - Health
+        summary: Health check
+        description: Basic health check endpoint with optional detailed information
+        parameters:
+          - name: detailed
+            in: query
+            schema:
+              type: boolean
+              default: false
+            description: Return detailed health information including database status and metrics
+        responses:
+          200:
+            description: System is healthy
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: healthy
+                    message:
+                      type: string
+                    version:
+                      type: string
+        """
         detailed = request.args.get('detailed', 'false').lower() == 'true'
         
         if detailed:

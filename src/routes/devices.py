@@ -27,7 +27,38 @@ device_bp = Blueprint("devices", __name__, url_prefix="/api/v1/devices")
 @validate_json_payload(["name", "device_type", "user_id"])
 @input_sanitization_middleware()
 def register_device():
-    """Register a new IoT device with user_id authentication"""
+    """Register a new IoT device
+    ---
+    tags:
+      - Devices
+    summary: Register new device
+    description: Register a new IoT device with user authentication
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+              - device_type
+              - user_id
+            properties:
+              name:
+                type: string
+                example: Temperature Sensor 1
+              device_type:
+                type: string
+                example: sensor
+              user_id:
+                type: string
+                example: fd596e05-a937-4eea-bbaf-2779686b9f1b
+    responses:
+      201:
+        description: Device registered successfully
+      400:
+        description: Invalid input
+    """
     try:
         data = request.validated_json
 
@@ -151,7 +182,34 @@ def get_device_status():
 @validate_json_payload(["data"])
 @input_sanitization_middleware()
 def submit_telemetry():
-    """Submit telemetry data from device"""
+    """Submit telemetry data from device
+    ---
+    tags:
+      - Telemetry
+    summary: Submit telemetry data
+    description: Submit telemetry data from an IoT device (requires device API key)
+    security:
+      - ApiKeyAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - data
+            properties:
+              data:
+                type: object
+                example:
+                  temperature: 25.5
+                  humidity: 60
+    responses:
+      201:
+        description: Telemetry data stored successfully
+      401:
+        description: Unauthorized - invalid API key
+    """
     try:
         device = request.device
         data = request.validated_json

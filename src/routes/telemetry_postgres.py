@@ -30,7 +30,48 @@ def get_authenticated_device(device_id=None):
 
 @telemetry_bp.route("", methods=["POST"])
 def store_telemetry():
-    """Store telemetry data in PostgreSQL"""
+    """Store telemetry data
+    ---
+    tags:
+      - Telemetry
+    summary: Submit telemetry data
+    description: Submit telemetry data from an IoT device
+    security:
+      - ApiKeyAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - measurements
+            properties:
+              measurements:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      example: temperature
+                    value:
+                      oneOf:
+                        - type: number
+                        - type: string
+                      example: 25.5
+                    unit:
+                      type: string
+                      example: celsius
+                    timestamp:
+                      type: string
+                      format: date-time
+    responses:
+      201:
+        description: Telemetry data stored successfully
+      401:
+        description: Unauthorized - invalid API key
+    """
     try:
         data = request.get_json()
 
