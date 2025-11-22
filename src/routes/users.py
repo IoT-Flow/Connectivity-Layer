@@ -4,7 +4,7 @@ User management routes
 
 from flask import Blueprint, request, jsonify, current_app
 from src.models import User, db
-from src.middleware.auth import require_admin_token
+from src.middleware.auth import require_admin_token, require_admin_jwt
 from src.middleware.security import security_headers_middleware
 from datetime import datetime, timezone
 
@@ -274,13 +274,16 @@ def update_user(user_id):
 
 @user_bp.route("/<user_id>", methods=["DELETE"])
 @security_headers_middleware()
+@require_admin_jwt
 def delete_user(user_id):
-    """Delete or deactivate a user
+    """Delete or deactivate a user (Admin only)
     ---
     tags:
       - Users
-    summary: Delete user
-    description: Deactivate a user account (soft delete)
+    summary: Delete user (Admin only)
+    description: Deactivate a user account (soft delete). Requires admin privileges.
+    security:
+      - BearerAuth: []
     parameters:
       - name: user_id
         in: path
@@ -288,6 +291,14 @@ def delete_user(user_id):
         schema:
           type: string
     responses:
+      200:
+        description: User deactivated successfully
+      401:
+        description: Unauthorized - invalid or missing token
+      403:
+        description: Forbidden - admin privileges required
+      404:
+        description: User not found
       200:
         description: User deactivated
       404:

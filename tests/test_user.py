@@ -315,22 +315,42 @@ class TestUserRoutes:
         assert data['user']['email'] == 'newemail@example.com'
     
     def test_delete_user(self, client, app):
-        """Test deleting a user"""
-        # Create a user
+        """Test deleting a user (requires admin)"""
+        import jwt
+        from datetime import timedelta
+        
+        # Create an admin user and a target user
         with app.app_context():
+            admin = User(username='admin', email='admin@example.com', password_hash='hash')
+            admin.is_admin = True
             user = User(username='testuser', email='test@example.com', password_hash='hash')
+            db.session.add(admin)
             db.session.add(user)
             db.session.commit()
             user_id = user.user_id
+            admin_id = admin.user_id
+            
+            # Generate admin token
+            payload = {
+                'user_id': admin_id,
+                'is_admin': True,
+                'exp': datetime.now(timezone.utc) + timedelta(hours=1)
+            }
+            token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
         
-        # Delete user
-        response = client.delete(f'/api/v1/users/{user_id}')
+        # Delete user with admin token
+        response = client.delete(
+            f'/api/v1/users/{user_id}',
+            headers={'Authorization': f'Bearer {token}'}
+        )
         
         assert response.status_code == 200
         
-        # Verify user is deleted or deactivated
+        # Verify user is deactivated
         response = client.get(f'/api/v1/users/{user_id}')
-        assert response.status_code in [404, 200]  # Either deleted or marked inactive
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['user']['is_active'] == False
     
     def test_list_users(self, client, app):
         """Test listing all users"""
