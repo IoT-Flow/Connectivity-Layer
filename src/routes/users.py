@@ -126,13 +126,16 @@ def get_user(user_id):
 
 @user_bp.route("", methods=["GET"])
 @security_headers_middleware()
+@require_admin_jwt
 def list_users():
-    """List all users
+    """List all users (Admin only)
     ---
     tags:
       - Users
-    summary: List users
-    description: Get list of all users with pagination
+    summary: List users (Admin only)
+    description: Get list of all users with pagination. Requires admin privileges.
+    security:
+      - BearerAuth: []
     parameters:
       - name: limit
         in: query
@@ -147,6 +150,10 @@ def list_users():
     responses:
       200:
         description: List of users
+      401:
+        description: Unauthorized - invalid or missing token
+      403:
+        description: Forbidden - admin privileges required
     """
     try:
         # Get pagination parameters

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoTFlow | Devices</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="components/navbar.js"></script>
+</head>
+<body class="bg-gray-50">
+    <custom-navbar></custom-navbar>
+    <main class="px-0 py-8 space-y-6">
+<div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">All Devices</h1>
+            <div class="flex items-center space-x-4">
+                <button id="addDeviceBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                    <i data-feather="plus" class="mr-2"></i> Add Device
+                </button>
+<div class="relative">
+                    <input type="text" placeholder="Search devices..." class="border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i data-feather="search" class="absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+</div>
+        <!-- Device List -->
+        <div class="bg-white overflow-hidden">
+<div class="overflow-x-auto">
+                <table class="w-full">
+<thead>
+                    <tr>
+                        <th scope="col" class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Device</th>
+                        <th scope="col" class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th scope="col" class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                        <th scope="col" class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Last Update</th>
+                        <th scope="col" class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+</tr>
+                </thead>
+<tbody class="bg-white divide-y divide-gray-200">
+                    <tr class="bg-white hover:bg-gray-50 transition-colors duration-150">
+                        <td class="px-6 py-6 whitespace-nowrap">
+<div class="flex items-center">
+                                <div class="flex-shrink-0 h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <i data-feather="cpu" class="text-blue-600"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-base font-medium text-gray-900">Temperature Sensor</div>
+                                    <div class="text-sm text-gray-500">ID: SENS-001</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-6 whitespace-nowrap text-base text-gray-500">Temperature/Humidity</td>
+                        <td class="px-6 py-6 whitespace-nowrap text-base text-gray-500">Living Room</td>
+                        <td class="px-6 py-6 whitespace-nowrap">
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">Online</span>
+                        </td>
+                        <td class="px-6 py-6 whitespace-nowrap text-base text-gray-500">2 minutes ago</td>
+                        <td class="px-6 py-6 whitespace-nowrap text-base font-medium space-x-4">
+<a href="#" class="text-blue-600 hover:text-blue-900">View</a>
+                            <a href="#" class="text-gray-600 hover:text-gray-900">Edit</a>
+                        </td>
+                    </tr>
+<tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                    <i data-feather="video" class="text-purple-600"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">Security Camera</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Security Camera</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Front Door</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Offline</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15 minutes ago</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="#" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                            <a href="#" class="text-gray-600 hover:text-gray-900">Edit</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
+                                    <i data-feather="droplet" class="text-green-600"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">Plant Monitor</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Soil Moisture</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Balcony</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Online</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">5 minutes ago</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="#" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                            <a href="#" class="text-gray-600 hover:text-gray-900">Edit</a>
+                        </td>
+                    </tr>
+                </tbody>
+                </table>
+            </div>
+            <div class="bg-white px-6 py-3 flex items-center justify-between border-t border-gray-200">
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing <span class="font-medium">1</span> to <span class="font-medium">3</span> of <span class="font-medium">12</span> devices
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            <a href="#" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                <span class="sr-only">Previous</span>
+                                <i data-feather="chevron-left" class="h-5 w-5"></i>
+                            </a>
+                            <a href="#" aria-current="page" class="z-10 bg-blue-50 border-blue-500 text-blue-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                                1
+                            </a>
+                            <a href="#" class="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                                2
+                            </a>
+                            <a href="#" class="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                                3
+                            </a>
+                            <a href="#" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                <span class="sr-only">Next</span>
+                                <i data-feather="chevron-right" class="h-5 w-5"></i>
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+</main>
+    <device-modal></device-modal>
+    <script>
+        feather.replace();
+    </script>
+    <script src="components/device-modal.js"></script>
+    <script src="components/chart-modal.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

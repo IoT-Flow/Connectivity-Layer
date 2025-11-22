@@ -10,6 +10,7 @@ from src.routes.devices import device_bp
 from src.routes.admin import admin_bp
 from src.routes.users import user_bp
 from src.routes.auth import auth_bp
+from src.routes.charts import chart_bp
 
 # Import PostgreSQL telemetry routes
 from src.routes.telemetry_postgres import telemetry_bp
@@ -99,6 +100,7 @@ def create_app(config_name=None):
     app.register_blueprint(admin_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(chart_bp)
     app.register_blueprint(telemetry_bp)
     
     # Enhanced health check endpoint

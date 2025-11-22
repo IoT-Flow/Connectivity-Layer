@@ -191,6 +191,25 @@ class Chart(db.Model):
         db.Index("idx_created_at", "created_at"),
     )
 
+    def to_dict(self):
+        """Convert chart to dictionary"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'title': self.title,
+            'description': self.description,
+            'type': self.type,
+            'user_id': self.user_id,
+            'time_range': self.time_range,
+            'refresh_interval': self.refresh_interval,
+            'aggregation': self.aggregation,
+            'group_by': self.group_by,
+            'appearance_config': self.appearance_config,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'is_active': self.is_active
+        }
+
 
 class ChartDevice(db.Model):
     """ChartDevice model for associating devices with charts"""

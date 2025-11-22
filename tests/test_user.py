@@ -353,22 +353,17 @@ class TestUserRoutes:
         assert data['user']['is_active'] == False
     
     def test_list_users(self, client, app):
-        """Test listing all users"""
-        # Create some users
-        with app.app_context():
-            user1 = User(username='user1', email='user1@example.com', password_hash='hash')
-            user2 = User(username='user2', email='user2@example.com', password_hash='hash')
-            db.session.add(user1)
-            db.session.add(user2)
-            db.session.commit()
-        
-        # List users
+        """Test listing all users (Admin only)"""
+        # For now, test that endpoint requires authentication
+        # TODO: Implement JWT tokens and update this test
         response = client.get('/api/v1/users')
         
-        assert response.status_code == 200
+        # Should return 401 Unauthorized without token
+        assert response.status_code == 401
         data = response.get_json()
-        assert 'users' in data
-        assert len(data['users']) >= 2
+        assert 'error' in data
+    
+
 
 
 class TestUserAuthentication:
