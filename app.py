@@ -2,6 +2,7 @@ import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_migrate import Migrate
+from flasgger import Swagger
 
 from src.config.config import config
 from src.models import db
@@ -39,8 +40,54 @@ def create_app(config_name=None):
          allow_headers=["Content-Type", "Authorization", "X-API-Key"],
          expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"]
     )
-
-
+    
+    # Initialize Swagger/OpenAPI documentation
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": 'apispec',
+                "route": '/apispec.json',
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/docs"
+    }
+    
+    swagger_template = {
+        "swagger": "2.0",
+        "info": {
+            "title": "IoTFlow Connectivity Layer API",
+            "description": "REST API for IoT device connectivity and telemetry data management",
+            "version": "1.0.0",
+            "contact": {
+                "name": "IoTFlow Team",
+                "url": "https://github.com/IoT-Flow/Connectivity-Layer"
+            }
+        },
+        "host": "localhost:5000",
+        "basePath": "/",
+        "schemes": ["http", "https"],
+        "securityDefinitions": {
+            "ApiKeyAuth": {
+                "type": "apiKey",
+                "name": "X-API-Key",
+                "in": "header",
+                "description": "Device API key for authentication"
+            },
+            "BearerAuth": {
+                "type": "apiKey",
+                "name": "Authorization",
+                "in": "header",
+                "description": "JWT token (format: Bearer <token>)"
+            }
+        }
+    }
+    
+    Swagger(app, config=swagger_config, template=swagger_template)
 
     migrate = Migrate(app, db)
     

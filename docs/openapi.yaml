@@ -1,0 +1,1021 @@
+openapi: 3.0.3
+info:
+  title: IoTFlow Connectivity Layer API
+  description: |
+    REST API for IoT device connectivity and telemetry data management.
+    
+    ## Features
+    - Device registration and management
+    - Real-time telemetry data ingestion
+    - User authentication and authorization
+    - Admin functions for system management
+    - Health monitoring and metrics
+    - Chart configuration and data visualization
+    
+    ## Authentication
+    Most endpoints require authentication using API keys or JWT tokens.
+    - Device endpoints use API keys (X-API-Key header)
+    - User endpoints use JWT tokens (Authorization: Bearer <token>)
+    
+  version: 1.0.0
+  contact:
+    name: IoTFlow Team
+    url: https://github.com/IoT-Flow/Connectivity-Layer
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.iotflow.example.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: System health and status endpoints
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Users
+    description: User management operations
+  - name: Devices
+    description: Device registration and management
+  - name: Telemetry
+    description: Telemetry data ingestion and retrieval
+  - name: Charts
+    description: Chart configuration and data visualization
+  - name: Admin
+    description: Administrative operations
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Device API key for authentication
+    
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for user authentication
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Detailed error message
+      required:
+        - error
+        - message
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Internal user ID
+        user_id:
+          type: string
+          description: Public user ID (UUID)
+        username:
+          type: string
+          description: Username
+        email:
+          type: string
+          format: email
+          description: User email
+        is_active:
+          type: boolean
+          description: Whether user is active
+        is_admin:
+          type: boolean
+          description: Whether user has admin privileges
+        created_at:
+          type: string
+          format: date-time
+          description: User creation timestamp
+      required:
+        - user_id
+        - username
+        - email
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Internal device ID
+        api_key:
+          type: string
+          description: Device API key
+        name:
+          type: string
+          description: Device name
+        device_type:
+          type: string
+          description: Device type
+        status:
+          type: string
+          enum: [active, inactive, maintenance]
+          description: Device status
+        last_seen:
+          type: string
+          format: date-time
+          description: Last activity timestamp
+        created_at:
+          type: string
+          format: date-time
+          description: Device creation timestamp
+      required:
+        - name
+        - device_type
+
+    TelemetryData:
+      type: object
+      properties:
+        device_id:
+          type: integer
+          description: Device ID
+        measurement_name:
+          type: string
+          description: Measurement name (e.g., temperature, humidity)
+        timestamp:
+          type: string
+          format: date-time
+          description: Measurement timestamp
+        numeric_value:
+          type: number
+          format: float
+          description: Numeric measurement value
+        string_value:
+          type: string
+          description: String measurement value
+        unit:
+          type: string
+          description: Measurement unit
+      required:
+        - measurement_name
+
+    Chart:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Chart ID
+        name:
+          type: string
+          description: Chart name
+        chart_type:
+          type: string
+          enum: [line, bar, pie, scatter, area]
+          description: Chart type
+        description:
+          type: string
+          description: Chart description
+        user_id:
+          type: integer
+          description: Owner user ID
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - name
+        - chart_type
+
+paths:
+  /:
+    get:
+      tags:
+        - Health
+      summary: Root endpoint
+      description: Get API information and available endpoints
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  version:
+                    type: string
+                  description:
+                    type: string
+                  endpoints:
+                    type: object
+                  documentation:
+                    type: string
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Basic health check endpoint
+      parameters:
+        - name: detailed
+          in: query
+          description: Return detailed health information
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  message:
+                    type: string
+                  version:
+                    type: string
+                  checks:
+                    type: object
+                  metrics:
+                    type: object
+
+  /status:
+    get:
+      tags:
+        - Health
+      summary: System status
+      description: Detailed system status and metrics
+      responses:
+        '200':
+          description: System status
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+              required:
+                - username
+                - email
+                - password
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and receive JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  token:
+                    type: string
+                    description: JWT access token
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/users:
+    get:
+      tags:
+        - Users
+      summary: List users
+      description: Get list of all users (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/users/{user_id}:
+    get:
+      tags:
+        - Users
+      summary: Get user details
+      description: Get details of a specific user
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User ID (UUID)
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/devices/register:
+    post:
+      tags:
+        - Devices
+      summary: Register new device
+      description: Register a new IoT device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Device name
+                device_type:
+                  type: string
+                  description: Device type (e.g., sensor, actuator)
+                user_id:
+                  type: string
+                  description: Owner user ID
+              required:
+                - name
+                - device_type
+                - user_id
+      responses:
+        '201':
+          description: Device registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  device:
+                    $ref: '#/components/schemas/Device'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/devices:
+    get:
+      tags:
+        - Devices
+      summary: List devices
+      description: Get list of all devices
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: string
+          description: Filter by user ID
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, maintenance]
+          description: Filter by device status
+      responses:
+        '200':
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  devices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+
+  /api/v1/devices/{device_id}:
+    get:
+      tags:
+        - Devices
+      summary: Get device details
+      description: Get details of a specific device
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Device ID
+      responses:
+        '200':
+          description: Device details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  device:
+                    $ref: '#/components/schemas/Device'
+        '404':
+          description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    put:
+      tags:
+        - Devices
+      summary: Update device
+      description: Update device information
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, inactive, maintenance]
+      responses:
+        '200':
+          description: Device updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  device:
+                    $ref: '#/components/schemas/Device'
+    
+    delete:
+      tags:
+        - Devices
+      summary: Delete device
+      description: Delete a device
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Device deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+
+  /api/v1/telemetry:
+    post:
+      tags:
+        - Telemetry
+      summary: Submit telemetry data
+      description: Submit telemetry data from a device
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                measurements:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        oneOf:
+                          - type: number
+                          - type: string
+                      unit:
+                        type: string
+                      timestamp:
+                        type: string
+                        format: date-time
+              required:
+                - measurements
+            example:
+              measurements:
+                - name: temperature
+                  value: 25.5
+                  unit: celsius
+                - name: humidity
+                  value: 60
+                  unit: percent
+      responses:
+        '201':
+          description: Telemetry data stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  count:
+                    type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/telemetry/device/{device_id}:
+    get:
+      tags:
+        - Telemetry
+      summary: Get device telemetry
+      description: Retrieve telemetry data for a specific device
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: start
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start time for data range
+        - name: end
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End time for data range
+        - name: measurement
+          in: query
+          schema:
+            type: string
+          description: Filter by measurement name
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: Maximum number of records
+      responses:
+        '200':
+          description: Telemetry data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TelemetryData'
+                  count:
+                    type: integer
+
+  /api/v1/charts:
+    post:
+      tags:
+        - Charts
+      summary: Create chart
+      description: Create a new chart configuration
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                chart_type:
+                  type: string
+                  enum: [line, bar, pie, scatter, area]
+                user_id:
+                  type: string
+                description:
+                  type: string
+              required:
+                - name
+                - chart_type
+                - user_id
+      responses:
+        '201':
+          description: Chart created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  chart:
+                    $ref: '#/components/schemas/Chart'
+    
+    get:
+      tags:
+        - Charts
+      summary: List charts
+      description: Get list of all charts
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: string
+          description: Filter by user ID
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of charts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  charts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Chart'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+
+  /api/v1/charts/{chart_id}:
+    get:
+      tags:
+        - Charts
+      summary: Get chart details
+      description: Get details of a specific chart
+      parameters:
+        - name: chart_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Chart details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  chart:
+                    allOf:
+                      - $ref: '#/components/schemas/Chart'
+                      - type: object
+                        properties:
+                          devices:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Device'
+                          measurements:
+                            type: array
+                            items:
+                              type: object
+    
+    put:
+      tags:
+        - Charts
+      summary: Update chart
+      description: Update chart configuration
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: chart_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                chart_type:
+                  type: string
+      responses:
+        '200':
+          description: Chart updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  chart:
+                    $ref: '#/components/schemas/Chart'
+    
+    delete:
+      tags:
+        - Charts
+      summary: Delete chart
+      description: Delete a chart
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: chart_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Chart deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+
+  /api/v1/charts/{chart_id}/data:
+    get:
+      tags:
+        - Charts
+      summary: Get chart data
+      description: Retrieve data for chart visualization
+      parameters:
+        - name: chart_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: start
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 1000
+      responses:
+        '200':
+          description: Chart data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  chart_id:
+                    type: integer
+                  chart_name:
+                    type: string
+                  chart_type:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TelemetryData'
+                  count:
+                    type: integer
+
+  /api/v1/admin/users:
+    get:
+      tags:
+        - Admin
+      summary: List all users (admin)
+      description: Get list of all users with admin privileges
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+
+  /api/v1/admin/devices:
+    get:
+      tags:
+        - Admin
+      summary: List all devices (admin)
+      description: Get list of all devices with admin privileges
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  devices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+
+  /api/v1/admin/devices/{device_id}:
+    get:
+      tags:
+        - Admin
+      summary: Get device details (admin)
+      description: Get detailed device information including telemetry stats
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Device details with stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  device:
+                    $ref: '#/components/schemas/Device'
+                  stats:
+                    type: object
