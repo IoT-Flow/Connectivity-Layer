@@ -201,77 +201,9 @@ class TestUserPasswordManagement:
 class TestUserRoutes:
     """Test user management API routes"""
     
-    def test_create_user_endpoint_exists(self, client):
-        """Test that POST /api/v1/users endpoint exists"""
-        response = client.post(
-            '/api/v1/users',
-            json={
-                'username': 'newuser',
-                'email': 'new@example.com',
-                'password': 'password123'
-            }
-        )
-        
-        # Should not return 404 (endpoint should exist)
-        assert response.status_code != 404
-    
-    def test_create_user_success(self, client):
-        """Test creating a new user via API"""
-        response = client.post(
-            '/api/v1/users',
-            json={
-                'username': 'newuser',
-                'email': 'new@example.com',
-                'password': 'password123'
-            }
-        )
-        
-        # Should return 201 Created
-        assert response.status_code == 201
-        
-        data = response.get_json()
-        assert data['status'] == 'success'
-        assert 'user' in data
-        assert data['user']['username'] == 'newuser'
-        assert data['user']['email'] == 'new@example.com'
-        assert 'password' not in data['user']  # Should not return password
-    
-    def test_create_user_missing_fields(self, client):
-        """Test creating user with missing required fields"""
-        response = client.post(
-            '/api/v1/users',
-            json={
-                'username': 'newuser'
-                # Missing email and password
-            }
-        )
-        
-        # Should return 400 Bad Request
-        assert response.status_code == 400
-    
-    def test_create_user_duplicate_username(self, client, app):
-        """Test creating user with duplicate username"""
-        # Create first user
-        with app.app_context():
-            user = User(username='testuser', email='test1@example.com', password_hash='hash')
-            db.session.add(user)
-            db.session.commit()
-        
-        # Try to create user with same username
-        response = client.post(
-            '/api/v1/users',
-            json={
-                'username': 'testuser',
-                'email': 'test2@example.com',
-                'password': 'password123'
-            }
-        )
-        
-        # Should return 409 Conflict or 400 Bad Request
-        assert response.status_code in [400, 409]
-    
+
     def test_get_user_by_id(self, client, app):
-        """Test getting user by ID"""
+        """Test getting user by ID (requires matching User ID or admin token)"""
         # Create a user
         with app.app_context():
             user = User(username='testuser', email='test@example.com', password_hash='hash')
@@ -279,8 +211,11 @@ class TestUserRoutes:
             db.session.commit()
             user_id = user.user_id
         
-        # Get user by ID
-        response = client.get(f'/api/v1/users/{user_id}')
+        # Get user by ID with matching User ID header
+        response = client.get(
+            f'/api/v1/users/{user_id}',
+            headers={'X-User-ID': user_id}
+        )
         
         assert response.status_code == 200
         data = response.get_json()
@@ -288,13 +223,18 @@ class TestUserRoutes:
         assert data['user']['email'] == 'test@example.com'
     
     def test_get_user_not_found(self, client):
-        """Test getting non-existent user"""
-        response = client.get('/api/v1/users/nonexistent123')
+        """Test getting non-existent user (with admin token)"""
+        admin_token = os.environ.get('IOTFLOW_ADMIN_TOKEN', 'test')
+        
+        response = client.get(
+            '/api/v1/users/nonexistent123',
+            headers={'Authorization': f'admin {admin_token}'}
+        )
         
         assert response.status_code == 404
     
     def test_update_user(self, client, app):
-        """Test updating user information"""
+        """Test updating user information (requires matching User ID or admin token)"""
         # Create a user
         with app.app_context():
             user = User(username='testuser', email='test@example.com', password_hash='hash')
@@ -302,9 +242,10 @@ class TestUserRoutes:
             db.session.commit()
             user_id = user.user_id
         
-        # Update user
+        # Update user with matching User ID header
         response = client.put(
             f'/api/v1/users/{user_id}',
+            headers={'X-User-ID': user_id},
             json={
                 'email': 'newemail@example.com'
             }
@@ -315,53 +256,58 @@ class TestUserRoutes:
         assert data['user']['email'] == 'newemail@example.com'
     
     def test_delete_user(self, client, app):
-        """Test deleting a user (requires admin)"""
-        import jwt
-        from datetime import timedelta
+        """Test deleting a user (requires admin token)"""
+        admin_token = os.environ.get('IOTFLOW_ADMIN_TOKEN', 'test')
         
-        # Create an admin user and a target user
+        # Create a target user
         with app.app_context():
-            admin = User(username='admin', email='admin@example.com', password_hash='hash')
-            admin.is_admin = True
             user = User(username='testuser', email='test@example.com', password_hash='hash')
-            db.session.add(admin)
             db.session.add(user)
             db.session.commit()
             user_id = user.user_id
-            admin_id = admin.user_id
-            
-            # Generate admin token
-            payload = {
-                'user_id': admin_id,
-                'is_admin': True,
-                'exp': datetime.now(timezone.utc) + timedelta(hours=1)
-            }
-            token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
         
         # Delete user with admin token
         response = client.delete(
             f'/api/v1/users/{user_id}',
-            headers={'Authorization': f'Bearer {token}'}
+            headers={'Authorization': f'admin {admin_token}'}
         )
         
         assert response.status_code == 200
         
-        # Verify user is deactivated
-        response = client.get(f'/api/v1/users/{user_id}')
+        # Verify user is deactivated (use admin token to check)
+        response = client.get(
+            f'/api/v1/users/{user_id}',
+            headers={'Authorization': f'admin {admin_token}'}
+        )
         assert response.status_code == 200
         data = response.get_json()
         assert data['user']['is_active'] == False
     
     def test_list_users(self, client, app):
         """Test listing all users (Admin only)"""
-        # For now, test that endpoint requires authentication
-        # TODO: Implement JWT tokens and update this test
-        response = client.get('/api/v1/users')
+        admin_token = os.environ.get('IOTFLOW_ADMIN_TOKEN', 'test')
         
-        # Should return 401 Unauthorized without token
+        # Create some users
+        with app.app_context():
+            user1 = User(username='user1', email='user1@example.com', password_hash='hash')
+            user2 = User(username='user2', email='user2@example.com', password_hash='hash')
+            db.session.add(user1)
+            db.session.add(user2)
+            db.session.commit()
+        
+        # Test without token - should fail
+        response = client.get('/api/v1/users')
         assert response.status_code == 401
+        
+        # Test with admin token - should succeed
+        response = client.get(
+            '/api/v1/users',
+            headers={'Authorization': f'admin {admin_token}'}
+        )
+        assert response.status_code == 200
         data = response.get_json()
-        assert 'error' in data
+        assert 'users' in data
+        assert len(data['users']) >= 2
     
 
 

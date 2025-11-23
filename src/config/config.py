@@ -18,7 +18,6 @@ class Config:
     RATE_LIMIT_PER_MINUTE = int(os.environ.get("RATE_LIMIT_PER_MINUTE", 60))
 
     # Security
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or "jwt-secret-key"
     API_KEY_LENGTH = int(os.environ.get("API_KEY_LENGTH", 32))
 
     # Logging

@@ -79,15 +79,21 @@ class TestGetUserDevices:
     """Test getting devices for a specific user"""
     
     def test_endpoint_exists(self, client, test_user):
-        """Test that GET /api/v1/devices/user/{user_id} endpoint exists"""
-        response = client.get(f'/api/v1/devices/user/{test_user["user_id"]}')
+        """Test that GET /api/v1/devices/user/{user_id} endpoint exists (requires auth)"""
+        response = client.get(
+            f'/api/v1/devices/user/{test_user["user_id"]}',
+            headers={'X-User-ID': test_user['user_id']}
+        )
         
         # Should not return 404
         assert response.status_code != 404
     
     def test_get_user_devices_empty(self, client, test_user):
-        """Test getting devices for user with no devices"""
-        response = client.get(f'/api/v1/devices/user/{test_user["user_id"]}')
+        """Test getting devices for user with no devices (requires auth)"""
+        response = client.get(
+            f'/api/v1/devices/user/{test_user["user_id"]}',
+            headers={'X-User-ID': test_user['user_id']}
+        )
         
         assert response.status_code == 200
         data = response.get_json()
@@ -97,8 +103,11 @@ class TestGetUserDevices:
         assert len(data['devices']) == 0
     
     def test_get_user_devices_success(self, client, test_user_with_devices):
-        """Test getting devices for user with devices"""
-        response = client.get(f'/api/v1/devices/user/{test_user_with_devices["user_id"]}')
+        """Test getting devices for user with devices (requires auth)"""
+        response = client.get(
+            f'/api/v1/devices/user/{test_user_with_devices["user_id"]}',
+            headers={'X-User-ID': test_user_with_devices['user_id']}
+        )
         
         assert response.status_code == 200
         data = response.get_json()
@@ -109,8 +118,13 @@ class TestGetUserDevices:
         assert len(data['devices']) == 5
     
     def test_get_user_devices_invalid_user(self, client):
-        """Test getting devices for non-existent user"""
-        response = client.get('/api/v1/devices/user/invalid-user-id')
+        """Test getting devices for non-existent user (with admin token)"""
+        admin_token = os.environ.get('IOTFLOW_ADMIN_TOKEN', 'test')
+        
+        response = client.get(
+            '/api/v1/devices/user/invalid-user-id',
+            headers={'Authorization': f'admin {admin_token}'}
+        )
         
         assert response.status_code == 404
         data = response.get_json()
@@ -118,10 +132,11 @@ class TestGetUserDevices:
         assert 'User not found' in data['error']
     
     def test_get_user_devices_filter_by_status(self, client, test_user_with_devices):
-        """Test filtering devices by status"""
+        """Test filtering devices by status (requires auth)"""
         # Get only active devices
         response = client.get(
-            f'/api/v1/devices/user/{test_user_with_devices["user_id"]}?status=active'
+            f'/api/v1/devices/user/{test_user_with_devices["user_id"]}?status=active',
+            headers={'X-User-ID': test_user_with_devices['user_id']}
         )
         
         assert response.status_code == 200
@@ -135,10 +150,11 @@ class TestGetUserDevices:
             assert device['status'] == 'active'
     
     def test_get_user_devices_pagination(self, client, test_user_with_devices):
-        """Test pagination of user devices"""
+        """Test pagination of user devices (requires auth)"""
         # Get first 2 devices
         response = client.get(
-            f'/api/v1/devices/user/{test_user_with_devices["user_id"]}?limit=2&offset=0'
+            f'/api/v1/devices/user/{test_user_with_devices["user_id"]}?limit=2&offset=0',
+            headers={'X-User-ID': test_user_with_devices['user_id']}
         )
         
         assert response.status_code == 200
@@ -152,7 +168,8 @@ class TestGetUserDevices:
         
         # Get next 2 devices
         response = client.get(
-            f'/api/v1/devices/user/{test_user_with_devices["user_id"]}?limit=2&offset=2'
+            f'/api/v1/devices/user/{test_user_with_devices["user_id"]}?limit=2&offset=2',
+            headers={'X-User-ID': test_user_with_devices['user_id']}
         )
         
         assert response.status_code == 200
@@ -161,8 +178,11 @@ class TestGetUserDevices:
         assert data['meta']['offset'] == 2
     
     def test_get_user_devices_no_api_key_in_response(self, client, test_user_with_devices):
-        """Test that API keys are not included in device list"""
-        response = client.get(f'/api/v1/devices/user/{test_user_with_devices["user_id"]}')
+        """Test that API keys are not included in device list (requires auth)"""
+        response = client.get(
+            f'/api/v1/devices/user/{test_user_with_devices["user_id"]}',
+            headers={'X-User-ID': test_user_with_devices['user_id']}
+        )
         
         assert response.status_code == 200
         data = response.get_json()
@@ -172,8 +192,11 @@ class TestGetUserDevices:
             assert 'api_key' not in device
     
     def test_get_user_devices_response_structure(self, client, test_user_with_devices):
-        """Test response structure"""
-        response = client.get(f'/api/v1/devices/user/{test_user_with_devices["user_id"]}')
+        """Test response structure (requires auth)"""
+        response = client.get(
+            f'/api/v1/devices/user/{test_user_with_devices["user_id"]}',
+            headers={'X-User-ID': test_user_with_devices['user_id']}
+        )
         
         assert response.status_code == 200
         data = response.get_json()

@@ -290,3 +290,107 @@ def delete_device(device_id):
         )
 
 
+@admin_bp.route("/devices/statuses", methods=["GET"])
+@require_admin_token
+def get_all_device_statuses():
+    """
+    Get status of all devices (Admin only)
+    Returns condensed device info with online/offline status for dashboard display
+    ---
+    tags:
+      - Admin
+    summary: Get all device statuses (Admin)
+    description: Get status of all devices in the system (requires admin authentication)
+    security:
+      - AdminAuth: []
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+    responses:
+      200:
+        description: List of all device statuses
+      401:
+        description: Admin token required
+    """
+    try:
+        # Get optional limit/offset parameters
+        limit = request.args.get("limit", default=100, type=int)
+        offset = request.args.get("offset", default=0, type=int)
+
+        # Query devices from database
+        devices = Device.query.order_by(Device.id).offset(offset).limit(limit).all()
+        device_statuses = []
+
+        for device in devices:
+            # Build condensed device info
+            device_info = {
+                "id": device.id,
+                "name": device.name,
+                "device_type": device.device_type,
+                "status": device.status,
+            }
+
+            # Check online status from database
+            device_info["is_online"] = is_device_online(device)
+
+            device_statuses.append(device_info)
+
+        # Return response
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "devices": device_statuses,
+                    "meta": {
+                        "total": Device.query.count(),
+                        "limit": limit,
+                        "offset": offset,
+                    },
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting device statuses: {str(e)}")
+        return (
+            jsonify(
+                {
+                    "error": "Status retrieval failed",
+                    "message": "An error occurred while retrieving device statuses",
+                }
+            ),
+            500,
+        )
+
+
+def is_device_online(device):
+    """
+    Helper function to check if device is online based on last_seen timestamp
+    """
+    if not device.last_seen:
+        # Device has never been seen
+        return False
+
+    # Ensure both datetimes are timezone-aware for comparison
+    now = datetime.now(timezone.utc)
+    last_seen = device.last_seen
+    if last_seen.tzinfo is None:
+        # If last_seen is naive, assume it's UTC
+        last_seen = last_seen.replace(tzinfo=timezone.utc)
+
+    # Consider device online if last seen in the last 5 minutes
+    time_since_last_seen = (now - last_seen).total_seconds()
+    is_online = time_since_last_seen < 300  # 5 minutes (300 seconds)
+
+    return is_online
+
+

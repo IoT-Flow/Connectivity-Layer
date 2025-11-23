@@ -8,6 +8,7 @@ import os
 from datetime import datetime, timezone
 
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+os.environ['IOTFLOW_ADMIN_TOKEN'] = 'test_admin_token'
 
 from app import create_app
 from src.models import db, User, Device
@@ -370,9 +371,12 @@ class TestDeviceStatus:
         # Should not return 404
         assert response.status_code != 404
     
-    def test_get_device_status_success(self, client, test_device):
+    def test_get_device_status_success(self, client, test_device, test_user):
         """Test getting device status"""
-        response = client.get(f'/api/v1/devices/{test_device["id"]}/status')
+        response = client.get(
+            f'/api/v1/devices/{test_device["id"]}/status',
+            headers={'X-User-ID': test_user['user_id']}
+        )
         
         assert response.status_code == 200
         data = response.get_json()
@@ -381,15 +385,21 @@ class TestDeviceStatus:
         assert 'is_online' in data['device']
         assert 'status' in data['device']
     
-    def test_get_device_status_not_found(self, client):
+    def test_get_device_status_not_found(self, client, test_user):
         """Test getting status of non-existent device"""
-        response = client.get('/api/v1/devices/99999/status')
+        response = client.get(
+            '/api/v1/devices/99999/status',
+            headers={'X-User-ID': test_user['user_id']}
+        )
         
         assert response.status_code == 404
     
     def test_get_all_device_statuses(self, client, test_device):
-        """Test getting all device statuses"""
-        response = client.get('/api/v1/devices/statuses')
+        """Test getting all device statuses (admin endpoint)"""
+        response = client.get(
+            '/api/v1/admin/devices/statuses',
+            headers={'Authorization': 'admin test_admin_token'}
+        )
         
         assert response.status_code == 200
         data = response.get_json()
@@ -397,7 +407,7 @@ class TestDeviceStatus:
         assert len(data['devices']) >= 1
         assert 'meta' in data
     
-    def test_device_online_status_calculation(self, app, client, test_device):
+    def test_device_online_status_calculation(self, app, client, test_device, test_user):
         """Test that device online status is calculated correctly"""
         # Send heartbeat to make device online
         client.post(
@@ -406,7 +416,10 @@ class TestDeviceStatus:
         )
         
         # Get status
-        response = client.get(f'/api/v1/devices/{test_device["id"]}/status')
+        response = client.get(
+            f'/api/v1/devices/{test_device["id"]}/status',
+            headers={'X-User-ID': test_user['user_id']}
+        )
         
         assert response.status_code == 200
         data = response.get_json()

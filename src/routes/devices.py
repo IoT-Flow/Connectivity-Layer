@@ -167,7 +167,7 @@ def get_user_devices(user_id):
     tags:
       - Devices
     summary: Get user devices
-    description: Get list of all devices belonging to a specific user
+    description: Get list of all devices belonging to a specific user (requires User ID header to match or admin token)
     parameters:
       - name: user_id
         in: path
@@ -175,6 +175,11 @@ def get_user_devices(user_id):
         schema:
           type: string
         description: User UUID
+      - name: X-User-ID
+        in: header
+        schema:
+          type: string
+        description: Requesting user's UUID (must match user_id or use admin token)
       - name: status
         in: query
         schema:
@@ -210,10 +215,40 @@ def get_user_devices(user_id):
                   type: array
                   items:
                     type: object
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden - can only view own devices
       404:
         description: User not found
     """
     try:
+        # Check authentication - either admin token or matching user ID
+        auth_header = request.headers.get("Authorization", "")
+        requesting_user_id = request.headers.get("X-User-ID")
+        
+        # Check if admin
+        is_admin = False
+        if auth_header.startswith("admin "):
+            import os
+            ADMIN_TOKEN = os.environ.get("IOTFLOW_ADMIN_TOKEN", "test")
+            token = auth_header.split(" ", 1)[1] if len(auth_header.split(" ", 1)) > 1 else ""
+            is_admin = (token == ADMIN_TOKEN)
+        
+        # If not admin, must provide matching user ID
+        if not is_admin:
+            if not requesting_user_id:
+                return jsonify({
+                    "error": "Authentication required",
+                    "message": "X-User-ID header required"
+                }), 401
+            
+            if requesting_user_id != user_id:
+                return jsonify({
+                    "error": "Forbidden",
+                    "message": "You can only view your own devices"
+                }), 403
+        
         # Find user by user_id
         user = User.query.filter_by(user_id=user_id).first()
         
@@ -316,166 +351,11 @@ def get_device_status():
         )
 
 
-@device_bp.route("/telemetry", methods=["POST"])
-@security_headers_middleware()
-@request_metrics_middleware()
-@authenticate_device
-@device_heartbeat_monitor()
-@rate_limit_device(max_requests=100, window=60)  # 100 telemetry submissions per minute
-@validate_json_payload(["data"])
-@input_sanitization_middleware()
-def submit_telemetry():
-    """Submit telemetry data from device
-    ---
-    tags:
-      - Telemetry
-    summary: Submit telemetry data
-    description: Submit telemetry data from an IoT device (requires device API key)
-    security:
-      - ApiKeyAuth: []
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-              - data
-            properties:
-              data:
-                type: object
-                example:
-                  temperature: 25.5
-                  humidity: 60
-    responses:
-      201:
-        description: Telemetry data stored successfully
-      401:
-        description: Unauthorized - invalid API key
-    """
-    try:
-        device = request.device
-        data = request.validated_json
-
-        # Validate payload structure
-        telemetry_payload = data["data"]
-        if not isinstance(telemetry_payload, dict):
-            return (
-                jsonify(
-                    {
-                        "error": "Invalid data format",
-                        "message": "Telemetry data must be a JSON object",
-                    }
-                ),
-                400,
-            )
-
-        # Store in PostgreSQL via telemetry service
-        timestamp = datetime.now(timezone.utc)
-
-        # Get PostgreSQL telemetry service
-        from src.services.postgres_telemetry import PostgresTelemetryService
-        telemetry_service = PostgresTelemetryService()
-        
-        success = telemetry_service.write_telemetry(
-            device_id=device.id,
-            data=telemetry_payload,
-            timestamp=timestamp
-        )
-
-        if not success:
-            return (
-                jsonify(
-                    {
-                        "error": "Telemetry storage failed",
-                        "message": "Failed to store telemetry data",
-                    }
-                ),
-                500,
-            )
-
-        # Update device last_seen
-        device.update_last_seen()
-
-        current_app.logger.info(f"Telemetry received from device {device.name} (ID: {device.id})")
-
-        return (
-            jsonify(
-                {
-                    "message": "Telemetry data received successfully",
-                    "device_id": device.id,
-                    "device_name": device.name,
-                    "timestamp": timestamp.isoformat(),
-                }
-            ),
-            201,
-        )
-
-    except Exception as e:
-        current_app.logger.error(f"Error submitting telemetry: {str(e)}")
-        return (
-            jsonify(
-                {
-                    "error": "Telemetry submission failed",
-                    "message": "An error occurred while processing telemetry data",
-                }
-            ),
-            500,
-        )
+# REMOVED: POST /api/v1/devices/telemetry - Duplicate of POST /api/v1/telemetry
+# Use POST /api/v1/telemetry instead (more flexible, supports metadata and custom timestamps)
 
 
-@device_bp.route("/telemetry", methods=["GET"])
-@authenticate_device
-def get_telemetry():
-    """Get telemetry data for device"""
-    try:
-        device = request.device
-
-        # Parse query parameters
-        limit = min(int(request.args.get("limit", 100)), 1000)  # Max 1000 records
-        start_time = request.args.get("start_time", "-24h")  # Default to last 24 hours
-        measurement_name = request.args.get("measurement")
-
-        # Get telemetry data from PostgreSQL
-        try:
-            from src.services.postgres_telemetry import PostgresTelemetryService
-            telemetry_service = PostgresTelemetryService()
-            
-            telemetry_data = telemetry_service.get_device_telemetry(
-                device_id=device.id,
-                start_time=start_time,
-                limit=limit,
-                measurement_name=measurement_name
-            )
-
-        except Exception as e:
-            current_app.logger.error(f"Error querying telemetry: {str(e)}")
-            telemetry_data = []
-
-        return (
-            jsonify(
-                {
-                    "status": "success",
-                    "telemetry": telemetry_data,
-                    "count": len(telemetry_data),
-                    "limit": limit,
-                    "start_time": start_time,
-                }
-            ),
-            200,
-        )
-
-    except Exception as e:
-        current_app.logger.error(f"Error retrieving telemetry: {str(e)}")
-        return (
-            jsonify(
-                {
-                    "error": "Telemetry retrieval failed",
-                    "message": "An error occurred while retrieving telemetry data",
-                }
-            ),
-            500,
-        )
+# REMOVED: GET /api/v1/devices/telemetry - Use GET /api/v1/telemetry/{device_id} instead
 
 
 @device_bp.route("/config", methods=["PUT"])
@@ -697,179 +577,11 @@ def get_device_config():
         )
 
 
-@device_bp.route("/config", methods=["POST"])
-@authenticate_device
-@security_headers_middleware()
-@request_metrics_middleware()
-@validate_json_payload(["config_key", "config_value"])
-@input_sanitization_middleware()
-def update_device_config():
-    """Update device configuration"""
-    try:
-        device = request.device
-        data = request.validated_json
-
-        config_key = data["config_key"]
-        config_value = str(data["config_value"])
-        data_type = data.get("data_type", "string")
-
-        # Check if configuration already exists
-        existing_config = DeviceConfiguration.query.filter_by(device_id=device.id, config_key=config_key).first()
-
-        if existing_config:
-            # Update existing configuration
-            existing_config.config_value = config_value
-            existing_config.data_type = data_type
-            existing_config.updated_at = datetime.now(timezone.utc)
-            existing_config.is_active = True
-        else:
-            # Create new configuration
-            new_config = DeviceConfiguration(
-                device_id=device.id,
-                config_key=config_key,
-                config_value=config_value,
-                data_type=data_type,
-            )
-            db.session.add(new_config)
-
-        db.session.commit()
-
-        current_app.logger.info(f"Configuration updated for device {device.name}: {config_key}")
-
-        return (
-            jsonify(
-                {
-                    "status": "success",
-                    "message": "Configuration updated successfully",
-                    "config_key": config_key,
-                    "config_value": config_value,
-                    "data_type": data_type,
-                }
-            ),
-            200,
-        )
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error updating device config: {str(e)}")
-        return (
-            jsonify(
-                {
-                    "error": "Failed to update configuration",
-                    "message": "An error occurred while updating device configuration",
-                }
-            ),
-            500,
-        )
+# REMOVED: POST /api/v1/devices/config - Use PUT /api/v1/devices/config instead (RESTful standard)
 
 
-@device_bp.route("/statuses", methods=["GET"])
-@security_headers_middleware()
-@request_metrics_middleware()
-def get_all_device_statuses():
-    """
-    Get status of all devices (Admin only)
-    Returns condensed device info with online/offline status for dashboard display
-    ---
-    tags:
-      - Devices
-    summary: Get all device statuses (Admin)
-    description: Get status of all devices in the system (requires admin authentication)
-    security:
-      - AdminAuth: []
-    parameters:
-      - name: Authorization
-        in: header
-        required: true
-        schema:
-          type: string
-        description: Admin token (format: "admin <token>")
-        example: admin your_admin_token
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          default: 100
-      - name: offset
-        in: query
-        schema:
-          type: integer
-          default: 0
-    responses:
-      200:
-        description: List of all device statuses
-      401:
-        description: Admin token required
-      403:
-        description: Invalid admin token
-    """
-    # Check for admin authentication
-    from src.middleware.auth import require_admin_token
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("admin "):
-        return jsonify({
-            "error": "Admin authentication required",
-            "message": "This endpoint requires admin privileges"
-        }), 401
-    
-    import os
-    ADMIN_TOKEN = os.environ.get("IOTFLOW_ADMIN_TOKEN", "test")
-    token = auth_header.split(" ", 1)[1] if len(auth_header.split(" ", 1)) > 1 else ""
-    if token != ADMIN_TOKEN:
-        return jsonify({
-            "error": "Invalid admin token",
-            "message": "The provided admin token is invalid"
-        }), 403
-    try:
-        # Get optional limit/offset parameters
-        limit = request.args.get("limit", default=100, type=int)
-        offset = request.args.get("offset", default=0, type=int)
-
-        # Query devices from database
-        devices = Device.query.order_by(Device.id).offset(offset).limit(limit).all()
-        device_statuses = []
-
-        for device in devices:
-            # Build condensed device info
-            device_info = {
-                "id": device.id,
-                "name": device.name,
-                "device_type": device.device_type,
-                "status": device.status,
-            }
-
-            # Check online status from database
-            device_info["is_online"] = is_device_online(device)
-
-            device_statuses.append(device_info)
-
-        # Return response
-        return (
-            jsonify(
-                {
-                    "status": "success",
-                    "devices": device_statuses,
-                    "meta": {
-                        "total": Device.query.count(),
-                        "limit": limit,
-                        "offset": offset,
-                    },
-                }
-            ),
-            200,
-        )
-
-    except Exception as e:
-        current_app.logger.error(f"Error getting device statuses: {str(e)}")
-        return (
-            jsonify(
-                {
-                    "error": "Status retrieval failed",
-                    "message": "An error occurred while retrieving device statuses",
-                }
-            ),
-            500,
-        )
+# REMOVED: GET /api/v1/devices/statuses - Moved to GET /api/v1/admin/devices/statuses
+# This is an admin-only endpoint and should be in the admin namespace
 
 
 @device_bp.route("/<int:device_id>/status", methods=["GET"])
@@ -995,3 +707,75 @@ def is_device_online(device):
 
     return is_online
 
+
+
+@device_bp.route("/<int:device_id>/groups", methods=["GET"])
+@security_headers_middleware()
+@request_metrics_middleware()
+def get_device_groups(device_id):
+    """Get all groups that contain a specific device
+    ---
+    tags:
+      - Devices
+    summary: Get device's groups
+    description: Get all groups that contain a specific device
+    parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Device groups retrieved
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden
+      404:
+        description: Device not found
+    """
+    from src.models import DeviceGroupMember
+    
+    # Get user from header
+    user_id = request.headers.get("X-User-ID")
+    if not user_id:
+        return jsonify({"error": "X-User-ID header required"}), 401
+    
+    user = User.query.filter_by(user_id=user_id).first()
+    if not user:
+        return jsonify({"error": "Invalid user ID"}), 401
+    
+    # Get device
+    device = Device.query.get(device_id)
+    if not device:
+        return jsonify({"error": "Device not found"}), 404
+    
+    if device.user_id != user.id:
+        return jsonify({"error": "Forbidden: device doesn't belong to user"}), 403
+    
+    # Get all group memberships for this device
+    memberships = DeviceGroupMember.query.filter_by(device_id=device_id).all()
+    
+    groups = []
+    for membership in memberships:
+        group = membership.group
+        groups.append({
+            'id': group.id,
+            'name': group.name,
+            'color': group.color,
+            'added_at': membership.added_at.isoformat() if membership.added_at else None
+        })
+    
+    return jsonify({
+        "status": "success",
+        "device_id": device_id,
+        "device_name": device.name,
+        "groups": groups,
+        "total_groups": len(groups)
+    }), 200

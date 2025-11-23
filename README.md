@@ -1,43 +1,35 @@
 # IoTFlow - IoT Device Connectivity Layer
 
-A modern, production-ready IoT platform built with Python Flask for comprehensive device connectivity, telemetry data collection, and real-time analytics. Clean, modernized codebase with advanced MQTT device simulation and robust data storage.
+A modern, production-ready IoT platform built with Python Flask for comprehensive device connectivity, telemetry data collection, and real-time analytics. Clean architecture with PostgreSQL storage and comprehensive REST API.
 
 ![IoT Platform](https://img.shields.io/badge/Platform-IoT-blue)
-![Python](https://img.shields.io/badge/Python-3.8%2B-green)
-![MQTT](https://img.shields.io/badge/Protocol-MQTT-orange)
-![IoTDB](https://img.shields.io/badge/Database-IoTDB-yellow)
+![Python](https://img.shields.io/badge/Python-3.10%2B-green)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-blue)
 ![Flask](https://img.shields.io/badge/Framework-Flask-lightgrey)
 
 ## 🚀 Features
 
 ### Core Capabilities
 - **🔌 Device Management**: Complete device lifecycle with secure API key authentication
-- **💾 Hybrid Data Storage**: SQLite for device metadata + IoTDB for time-series telemetry  
-- **📡 Multi-Protocol Support**: HTTP REST API + MQTT pub/sub messaging
-- **⚡ Real-time Analytics**: Advanced time-series queries, aggregations, and dashboards
-- **🛡️ Enterprise Security**: API key authentication, rate limiting, and secure endpoints
-- **📈 Scalable Architecture**: Redis caching, background processing, containerized services
-- **🧪 Advanced Testing**: Production-ready device simulators and testing framework
+- **💾 PostgreSQL Storage**: Unified PostgreSQL database for devices, users, and telemetry data
+- **📡 REST API**: Comprehensive HTTP REST API with Swagger documentation
+- **⚡ Real-time Analytics**: Time-series queries, aggregations, and data visualization
+- **🛡️ Enterprise Security**: API key authentication, JWT tokens, rate limiting, and secure endpoints
+- **📈 Scalable Architecture**: Containerized services with Docker Compose
+- **🧪 Comprehensive Testing**: Full test suite for all API endpoints
 
 ### Production Features
-- **🔍 Time-Series Analytics**: Complex IoTDB queries with filtering and aggregation
-- **🤖 Smart Device Simulation**: Advanced MQTT simulator with realistic device behavior
-- **📋 Admin Dashboard**: Complete device and telemetry management interface
+- **🔍 Time-Series Analytics**: PostgreSQL-based telemetry queries with filtering and aggregation
+- **📋 User Management**: Multi-user support with device ownership and access control
+- **📊 Chart Configuration**: Customizable charts with device and measurement associations
 - **📚 Modern Development**: Poetry dependency management and development workflow
-- **🐳 Containerized Deployment**: Full Docker Compose development and production environment
-- **📊 Comprehensive Monitoring**: Structured logging, metrics, health checks, and debugging tools
-
-### Recent Improvements (v0.2)
-- **✨ Cleaned up simulator environment** - Removed all legacy simulators, single advanced simulator
-- **🔧 Enhanced device registration** - Smart handling of existing devices, auto-suffix options
-- **📈 Improved error handling** - Better debugging and diagnostic capabilities
-- **🔍 Enhanced data retrieval** - Comprehensive IoTDB data query and export tools
-- **📝 Production documentation** - Complete setup, testing, and troubleshooting guides
+- **🐳 Containerized Deployment**: Docker Compose for PostgreSQL and application services
+- **📊 Comprehensive Monitoring**: Structured logging, health checks, and system metrics
 
 ## 🏗️ Architecture
 
 ```
-    IoT Devices (HTTP/MQTT)
+    IoT Devices (HTTP)
            ↓
     ┌─────────────────────────┐
     │   Load Balancer/Proxy   │
@@ -45,18 +37,13 @@ A modern, production-ready IoT platform built with Python Flask for comprehensiv
                   ↓
     ┌─────────────────────────┐
     │    Flask Application    │
-    │   (REST API + MQTT)     │
-    └─────────┬─────────┬─────┘
-              ↓         ↓
-    ┌─────────────┐   ┌──────────────┐
-    │             │   │    IoTDB     │
-    │PostgreSQL   │   │ (Telemetry)  │
-    │(Devices)    │   └──────────────┘
-    └─────────────┘
-              ↓
+    │      (REST API)         │
+    └─────────────┬───────────┘
+                  ↓
     ┌─────────────────────────┐
-    │   Redis (Cache/Queue)   │
-    │   MQTT Broker           │
+    │      PostgreSQL         │
+    │  (Users, Devices,       │
+    │   Telemetry, Charts)    │
     └─────────────────────────┘
 ```
 
@@ -73,7 +60,7 @@ This project supports both SQLite (development) and PostgreSQL (production) data
 **Using Docker Compose (Recommended):**
 ```bash
 # PostgreSQL is already configured in docker-compose.yml
-./docker-manage.sh start-all
+docker compose up -d
 ```
 
 **Manual PostgreSQL Installation:**
@@ -107,9 +94,6 @@ DATABASE_URL=postgresql://iotflow_user:iotflow_password@postgres:5432/iotflow
 ```bash
 # Initialize PostgreSQL database (drops all existing tables)
 poetry run python init_db.py
-
-# Or using Docker
-./docker-manage.sh init-app
 ```
 
 #### 4. Data Migration (Optional)
@@ -246,9 +230,10 @@ ALTER SYSTEM SET max_connections = 200;
 
 ### Prerequisites
 
-- **Python 3.8+** 
+- **Python 3.10+** 
 - **Poetry** (recommended) or pip
 - **Docker & Docker Compose**
+- **PostgreSQL 15+**
 - **Git**
 
 ### 1. Clone and Setup
@@ -280,14 +265,14 @@ nano .env
 ### 3. Start Services & Initialize
 
 ```bash
-# Start all services (Redis, IoTDB, MQTT)
-./docker-manage.sh start-all
+# Start PostgreSQL with Docker Compose
+docker compose up -d
 
-# Initialize Python environment and database
-./docker-manage.sh init-app
+# Initialize database and create default users
+poetry run python init_db.py
 
 # Start Flask application
-./docker-manage.sh run
+poetry run python app.py
 ```
 
 ### 4. Verify Installation
@@ -296,102 +281,38 @@ nano .env
 # Check service health
 curl http://localhost:5000/health
 
+# View API documentation
+open http://localhost:5000/docs
+
 # Run comprehensive tests
-./docker-manage.sh test
+poetry run pytest tests/
 ```
 
-## 🎮 Device Simulation & Testing
+## 🧪 Testing & Validation
 
-### 🤖 Advanced MQTT Device Simulator (v0.2)
-
-The platform now includes a single, production-ready MQTT device simulator that replaces all legacy simulators. This advanced simulator provides realistic device behavior with multiple simulation profiles.
-
-#### Quick Start Examples
+### Running Tests
 
 ```bash
-# Basic smart sensor (default profile, 5 minutes)
-poetry run python simulators/new_mqtt_device_simulator.py --name MyTestDevice
+# Run all tests
+poetry run pytest tests/ -v
 
-# High-frequency sensor (data every 5 seconds)
-poetry run python simulators/new_mqtt_device_simulator.py \
-    --name HighFreqSensor \
-    --profile high_frequency \
-    --duration 600
+# Run specific test files
+poetry run pytest tests/test_devices.py -v
+poetry run pytest tests/test_telemetry.py -v
+poetry run pytest tests/test_user.py -v
 
-# Industrial sensor with comprehensive telemetry
-poetry run python simulators/new_mqtt_device_simulator.py \
-    --name IndustrialSensor001 \
-    --type industrial_sensor \
-    --profile industrial \
-    --duration 1800
-
-# Energy-efficient device (data every 5 minutes)
-poetry run python simulators/new_mqtt_device_simulator.py \
-    --name LowPowerSensor \
-    --profile energy_efficient \
-    --duration 3600
+# Run with coverage
+poetry run pytest tests/ --cov=src --cov-report=html
 ```
 
-#### Advanced Options
+### Available Test Suites
 
-```bash
-# Handle existing device names automatically
-poetry run python simulators/new_mqtt_device_simulator.py \
-    --name ExistingDevice \
-    --auto-suffix            # Adds _1, _2, etc. if name exists
-
-# Force re-registration (use with caution)
-poetry run python simulators/new_mqtt_device_simulator.py \
-    --name ExistingDevice \
-    --force-register
-
-# Custom connection settings
-poetry run python simulators/new_mqtt_device_simulator.py \
-    --name RemoteDevice \
-    --host remote-iot-server.com \
-    --mqtt-port 1883 \
-    --http-port 5000
-```
-
-#### Simulation Profiles
-
-| Profile | Telemetry Interval | Data Types | Battery Drain | Use Case |
-|---------|-------------------|------------|---------------|----------|
-| `default` | 30 seconds | temperature, humidity, pressure, battery | 0.1%/hour | General IoT sensors |
-| `high_frequency` | 5 seconds | temperature, humidity, pressure, accelerometer, gyroscope | 0.5%/hour | Motion/vibration sensors |
-| `energy_efficient` | 5 minutes | temperature, battery | 0.05%/hour | Long-term deployment |
-| `industrial` | 10 seconds | temperature, pressure, vibration, power_consumption | 0.3%/hour | Industrial monitoring |
-
-#### Smart Registration Features
-
-- **Existing Device Detection**: Automatically checks if device name already exists
-- **Graceful Handling**: Provides clear guidance when device conflicts occur
-- **Auto-suffix Option**: Automatically appends numbers to device names (e.g., `MyDevice_1`)
-- **Force Registration**: Option to attempt re-registration of existing devices
-
-### 🧪 Testing & Validation
-
-#### End-to-End Testing
-```bash
-# Complete platform test
-./docker-manage.sh test
-
-# Test device registration and data flow
-poetry run python scripts/test_esp32_registration.py
-
-# Monitor device data in real-time
-poetry run python scripts/monitor_device_data.py --device TestDevice
-```
-
-#### Data Verification
-```bash
-# Check IoTDB data storage
-poetry run python scripts/retrieve_iotdb_data.py --list-devices
-poetry run python scripts/retrieve_iotdb_data.py --device 5 --latest --limit 20
-
-# Verify MQTT messaging
-./scripts/monitor_mqtt.sh
-```
+- `test_devices.py` - Device registration, status, and management
+- `test_telemetry.py` - Telemetry data submission and retrieval
+- `test_user.py` - User creation and management
+- `test_admin.py` - Admin operations
+- `test_charts_api.py` - Chart configuration
+- `test_health.py` - Health check endpoints
 ## 📡 API Endpoints
 
 The IoTFlow platform provides a comprehensive API for device management, telemetry data handling, administration, and system monitoring. The APIs follow RESTful principles and use the following authentication mechanisms:
@@ -404,40 +325,59 @@ The IoTFlow platform provides a comprehensive API for device management, telemet
 
 | Method | Endpoint                    | Description                    | Auth Required |
 |--------|----------------------------|--------------------------------|---------------|
-| POST   | `/api/v1/devices/register` | Register new device            | None          |
+| POST   | `/api/v1/devices/register` | Register new device            | X-User-ID     |
 | GET    | `/api/v1/devices/status`   | Get device status & health     | API Key       |
 | POST   | `/api/v1/devices/heartbeat`| Send device heartbeat          | API Key       |
 | PUT    | `/api/v1/devices/config`   | Update device configuration    | API Key       |
-| GET    | `/api/v1/devices/config`   | Get device configuration       | API Key       |
-| GET    | `/api/v1/devices/mqtt-credentials` | Get MQTT connection credentials | API Key |
-| GET    | `/api/v1/devices/statuses` | Get all device statuses        | None          |
+| GET    | `/api/v1/devices/credentials` | Get device credentials      | API Key       |
+| GET    | `/api/v1/devices/user/{user_id}` | Get user's devices       | None          |
+| GET    | `/api/v1/devices/{device_id}/status` | Get device status by ID | X-User-ID |
 
 ### 📊 Telemetry & Data
 
 | Method | Endpoint                           | Description                    | Auth Required |
 |--------|------------------------------------|--------------------------------|---------------|
-| POST   | `/api/v1/devices/telemetry`       | Submit telemetry data via HTTP  | API Key       |
-| GET    | `/api/v1/devices/telemetry`       | Get device's own telemetry      | API Key       |
 | POST   | `/api/v1/telemetry`               | Submit telemetry data          | API Key       |
-| GET    | `/api/v1/telemetry/{device_id}`   | Get device telemetry history   | API Key*      |
-| GET    | `/api/v1/telemetry/{device_id}/latest` | Get latest telemetry      | API Key*      |
-| GET    | `/api/v1/telemetry/{device_id}/aggregated` | Get aggregated data   | API Key*      |
-| DELETE | `/api/v1/telemetry/{device_id}`   | Delete device telemetry        | API Key*      |
+| GET    | `/api/v1/telemetry/{device_id}`   | Get device telemetry history   | API Key       |
+| GET    | `/api/v1/telemetry/{device_id}/latest` | Get latest telemetry      | API Key       |
+| GET    | `/api/v1/telemetry/{device_id}/aggregated` | Get aggregated data   | API Key       |
+| DELETE | `/api/v1/telemetry/{device_id}`   | Delete device telemetry        | API Key       |
 | GET    | `/api/v1/telemetry/status`        | Get telemetry system status    | None          |
+| GET    | `/api/v1/telemetry/user/{user_id}` | Get user's telemetry data     | X-User-ID     |
 
-### 📡 MQTT Management
+### 👥 User Management
 
-| Method | Endpoint                           | Description                    | Auth Required |
-|--------|------------------------------------|--------------------------------|---------------|
-| GET    | `/api/v1/mqtt/status`             | Get MQTT broker status         | None          |
-| GET    | `/api/v1/mqtt/monitoring/metrics` | Get MQTT monitoring metrics    | None          |
-| POST   | `/api/v1/mqtt/telemetry/{device_id}` | Submit telemetry via MQTT REST proxy | API Key |
+| Method | Endpoint                      | Description                 | Auth Required |
+|--------|-------------------------------|-----------------------------|--------------| 
+| POST   | `/api/v1/auth/register`       | Register new user           | None          |
+| GET    | `/api/v1/users/{user_id}`     | Get user details            | User ID or Admin |
+| GET    | `/api/v1/users`               | List all users              | Admin Token   |
+| PUT    | `/api/v1/users/{user_id}`     | Update user                 | User ID or Admin |
+| DELETE | `/api/v1/users/{user_id}`     | Delete/deactivate user      | Admin Token   |
+
+### 🔐 Authentication
+
+| Method | Endpoint                      | Description                 | Auth Required |
+|--------|-------------------------------|-----------------------------|--------------| 
+| POST   | `/api/v1/auth/login`          | User login (JWT)            | None          |
+| POST   | `/api/v1/auth/refresh`        | Refresh JWT token           | JWT           |
+
+### 📊 Charts
+
+| Method | Endpoint                      | Description                 | Auth Required |
+|--------|-------------------------------|-----------------------------|--------------| 
+| POST   | `/api/v1/charts`              | Create chart                | X-User-ID     |
+| GET    | `/api/v1/charts/{chart_id}`   | Get chart details           | None          |
+| PUT    | `/api/v1/charts/{chart_id}`   | Update chart                | X-User-ID     |
+| DELETE | `/api/v1/charts/{chart_id}`   | Delete chart                | X-User-ID     |
+| GET    | `/api/v1/charts/user/{user_id}` | Get user's charts         | None          |
 
 ### 🛠️ Administration
 
 | Method | Endpoint                      | Description                 | Auth Required |
 |--------|-------------------------------|-----------------------------|--------------| 
 | GET    | `/api/v1/admin/devices`       | List all devices            | Admin         |
+| GET    | `/api/v1/admin/devices/statuses` | Get all device statuses  | Admin         |
 | GET    | `/api/v1/admin/devices/{id}`  | Get device details          | Admin         |
 | PUT    | `/api/v1/admin/devices/{id}`  | Update device               | Admin         |
 | DELETE | `/api/v1/admin/devices/{id}`  | Delete device               | Admin         |
@@ -458,15 +398,45 @@ The IoTFlow platform provides a comprehensive API for device management, telemet
 
 ## 💡 Usage Examples
 
+### Create a User
+
+```bash
+curl -X POST http://localhost:5000/api/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "john_doe",
+    "email": "john@example.com",
+    "password": "secure_password"
+  }'
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "User created successfully",
+  "user": {
+    "id": 1,
+    "user_id": "adc513e4ab554b3f84900affe582beb8",
+    "username": "john_doe",
+    "email": "john@example.com",
+    "is_active": true,
+    "is_admin": false,
+    "created_at": "2025-11-23T14:30:00Z"
+  }
+}
+```
+
 ### Register a Device
 
 ```bash
 curl -X POST http://localhost:5000/api/v1/devices/register \
   -H "Content-Type: application/json" \
+  -H "X-User-ID: adc513e4ab554b3f84900affe582beb8" \
   -d '{
     "name": "Smart Temperature Sensor 001",
     "description": "Living room environmental sensor",
-    "device_type": "temperature_sensor",
+    "device_type": "sensor",
     "location": "Living Room",
     "firmware_version": "1.2.3",
     "hardware_version": "v2.1"
@@ -481,9 +451,14 @@ curl -X POST http://localhost:5000/api/v1/devices/register \
     "id": 1,
     "name": "Smart Temperature Sensor 001",
     "api_key": "rnby0SIR2kF8mN3Q7vX9L1cE6tA5Y4pB",
-    "status": "active",
-    "device_type": "temperature_sensor",
-    "created_at": "2025-07-02T14:30:00Z"
+    "status": "inactive",
+    "device_type": "sensor",
+    "user_id": 1,
+    "created_at": "2025-11-23T14:30:00Z",
+    "owner": {
+      "username": "john_doe",
+      "email": "john@example.com"
+    }
   }
 }
 ```
@@ -491,22 +466,19 @@ curl -X POST http://localhost:5000/api/v1/devices/register \
 ### Submit Telemetry Data
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/devices/telemetry \
+# Submit telemetry data
+curl -X POST http://localhost:5000/api/v1/telemetry \
   -H "X-API-Key: rnby0SIR2kF8mN3Q7vX9L1cE6tA5Y4pB" \
   -H "Content-Type: application/json" \
   -d '{
     "data": {
       "temperature": 23.5,
-      "humidity": 65.2,
-      "pressure": 1013.25,
-      "battery_level": 87,
-      "signal_strength": -52
+      "humidity": 65.2
     },
     "metadata": {
-      "location": "Living Room",
-      "sensor_status": "active"
+      "location": "Living Room"
     },
-    "timestamp": "2025-07-02T14:30:00Z"
+    "timestamp": "2025-11-23T14:30:00Z"
   }'
 ```
 
@@ -536,26 +508,26 @@ curl -X POST http://localhost:5000/api/v1/devices/heartbeat \
   -H "X-API-Key: rnby0SIR2kF8mN3Q7vX9L1cE6tA5Y4pB"
 ```
 
-### MQTT Management
+### User Login
 
 ```bash
-# Check MQTT service status
-curl "http://localhost:5000/api/v1/mqtt/status"
-
-# Get MQTT metrics
-curl "http://localhost:5000/api/v1/mqtt/monitoring/metrics"
-
-# Submit telemetry via MQTT REST proxy
-curl -X POST http://localhost:5000/api/v1/mqtt/telemetry/1 \
-  -H "X-API-Key: rnby0SIR2kF8mN3Q7vX9L1cE6tA5Y4pB" \
+# Login to get JWT token
+curl -X POST http://localhost:5000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "data": {
-      "temperature": 24.5,
-      "humidity": 62.0
-    },
-    "timestamp": "2025-07-07T10:15:30Z"
+    "username": "john_doe",
+    "password": "secure_password"
   }'
+
+# Response includes JWT token
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "user_id": "adc513e4ab554b3f84900affe582beb8",
+    "username": "john_doe",
+    "email": "john@example.com"
+  }
+}
 ```
 
 ### Administration APIs
@@ -590,47 +562,52 @@ curl -X DELETE "http://localhost:5000/api/v1/admin/cache/devices/1" \
 ```
 ## 🗃️ Data Architecture
 
-### Database Layer (SQLite/PostgreSQL)
+### PostgreSQL Database
 
-The platform supports both SQLite (development) and PostgreSQL (production) through SQLAlchemy ORM abstraction.
+The platform uses PostgreSQL as the primary database for all data storage through SQLAlchemy ORM.
 
-**Devices Table Schema:**
-- `id` - Primary key (SERIAL/INTEGER)
-- `name` - Unique device identifier (VARCHAR(100))
+**Users Table:**
+- `id` - Primary key (SERIAL)
+- `user_id` - Unique UUID (VARCHAR(32))
+- `username` - Unique username (VARCHAR(80))
+- `email` - Unique email (VARCHAR(120))
+- `password_hash` - Hashed password (VARCHAR(128))
+- `is_active` - Account status (BOOLEAN)
+- `is_admin` - Admin privileges (BOOLEAN)
+- `created_at` - Registration timestamp (TIMESTAMP)
+- `updated_at` - Last modification (TIMESTAMP)
+- `last_login` - Last login timestamp (TIMESTAMP)
+
+**Devices Table:**
+- `id` - Primary key (SERIAL)
+- `name` - Device name (VARCHAR(100))
 - `description` - Device description (TEXT)
-- `device_type` - Category (VARCHAR(50): sensor, actuator, camera, etc.)
-- `api_key` - Unique authentication key (VARCHAR(32))
+- `device_type` - Category (VARCHAR(50): sensor, actuator, etc.)
+- `api_key` - Unique authentication key (VARCHAR(64))
 - `status` - Device status (VARCHAR(20): active, inactive, maintenance)
 - `location` - Physical location (VARCHAR(200))
-- `firmware_version` - Current firmware version (VARCHAR(50))
-- `hardware_version` - Hardware revision (VARCHAR(50))
+- `firmware_version` - Current firmware version (VARCHAR(20))
+- `hardware_version` - Hardware revision (VARCHAR(20))
+- `user_id` - Foreign key to users table (INTEGER)
 - `created_at` - Registration timestamp (TIMESTAMP)
 - `updated_at` - Last modification (TIMESTAMP)
 - `last_seen` - Last heartbeat/activity (TIMESTAMP)
 
-**Database Selection:**
-- **SQLite**: Perfect for development, testing, and small deployments
-- **PostgreSQL**: Recommended for production, high-concurrency environments
+**Telemetry Data Table:**
+- `id` - Primary key (SERIAL)
+- `device_id` - Device identifier (VARCHAR)
+- `timestamp` - Measurement timestamp (TIMESTAMP)
+- `measurement_name` - Measurement type (VARCHAR)
+- `value` - Measurement value (FLOAT)
+- `unit` - Unit of measurement (VARCHAR)
+- `device_type` - Device category (VARCHAR)
+- `user_id` - Owner user ID (INTEGER)
+- `metadata` - Additional data (JSONB)
 
-### Redis Cache Layer
-
-**Device Status Cache:**
-- Key pattern: `device_status:{device_id}`
-- TTL: 300 seconds (5 minutes)
-- Purpose: Fast device status lookups, reduced database queries
-
-**Background Sync Process:**
-- Periodic synchronization between Redis cache and primary database
-- Handles both SQLite and PostgreSQL connections
-- Configurable sync intervals and error handling
-
-### IoTDB (Time-Series Telemetry)
-
-**Time Series Structure:**
-- **Storage Groups**: `root.iotflow.{device_id}`
-- **Measurements**: Device data fields (temperature, humidity, etc.)
-- **Data Types**: INT32, INT64, FLOAT, DOUBLE, TEXT, BOOLEAN
-- **Timestamp**: Precise time-series indexing
+**Charts Tables:**
+- `charts` - Chart configurations with user associations
+- `chart_devices` - Many-to-many relationship between charts and devices
+- `chart_measurements` - Measurement configurations for charts
 
 ## 🛠️ Development & Management
 
@@ -640,132 +617,95 @@ The platform supports both SQLite (development) and PostgreSQL (production) thro
 IoTFlow_ConnectivityLayer/
 ├── 📁 src/                          # Core application code
 │   ├── config/                      # Configuration management
-│   │   ├── config.py               # Flask & database config
-│   │   └── iotdb_config.py         # IoTDB configuration
+│   │   └── config.py               # Flask & database config
 │   ├── models/                      # SQLAlchemy database models
+│   │   └── __init__.py             # User, Device, Chart models
 │   ├── routes/                      # API route handlers
 │   │   ├── devices.py              # Device management endpoints
-│   │   ├── telemetry.py            # Telemetry data endpoints
+│   │   ├── telemetry_postgres.py   # Telemetry data endpoints
 │   │   ├── admin.py                # Administrative endpoints
-│   │   ├── control.py              # Device control endpoints
-│   │   ├── mqtt.py                 # MQTT endpoints
+│   │   ├── users.py                # User management endpoints
+│   │   ├── auth.py                 # Authentication endpoints
+│   │   └── charts.py               # Chart configuration endpoints
 │   ├── services/                    # Business logic services
-│   │   ├── device_status_cache.py  # Device status cache logic
-│   │   ├── iotdb.py                # IoTDB service layer
-│   │   ├── mqtt_auth.py            # MQTT authentication
-│   │   └── status_sync_service.py  # Status sync logic
+│   │   └── postgres_telemetry.py   # PostgreSQL telemetry service
 │   ├── middleware/                  # Request/response middleware
 │   │   ├── auth.py                 # Authentication & authorization
 │   │   ├── security.py             # Security utilities
 │   │   └── monitoring.py           # Performance monitoring
 │   └── utils/                       # Utility functions
 │       ├── logging.py              # Logging configuration
-│       ├── redis_util.py           # Redis utilities
 │       └── time_util.py            # Timestamp utilities
-├── 📁 simulators/                   # Device simulation & testing
-│   ├── mqtt_device_simulator.py    # Advanced MQTT device simulator
+├── 📁 simulators/                   # Device simulation examples
 │   ├── example_usage.py            # Simulator usage example
 │   ├── simulator_config.py         # Simulator configuration
 │   └── README.md                   # Simulator usage guide
-├── 📁 mqtt/                         # MQTT broker configuration
-│   ├── config/                     # Mosquitto configuration files
-│   └── logs/                       # Mosquitto logs
-├── 📁 tests/                        # Test suites (unit & integration)
-│   ├── test_device_registration.py # Device registration tests
-│   ├── test_end_to_end.py          # End-to-end tests
-│   └── test_timestamps.py          # Timestamp tests
+├── 📁 tests/                        # Test suites
+│   ├── test_devices.py             # Device tests
+│   ├── test_telemetry.py           # Telemetry tests
+│   ├── test_user.py                # User tests
+│   ├── test_admin.py               # Admin tests
+│   ├── test_charts_api.py          # Chart tests
+│   └── test_health.py              # Health check tests
 ├── 📁 docs/                         # Documentation
-│   ├── device_status_cache.md
-│   ├── esp32_registration_workflow.md
-│   ├── iotdb_integration.md
-│   └── status_sync_service.md
+│   ├── API_DOCUMENTATION.md
+│   ├── SETUP_GUIDE.md
+│   └── openapi.yaml                # OpenAPI specification
+├── 📁 logs/                         # Application logs
 ├── 🐳 docker-compose.yml            # Container orchestration
-├── 🔧 docker-manage.sh              # Docker management script
-├── 🔧 manage.py                     # Python management script
 ├── 📦 pyproject.toml                # Poetry dependencies
 ├── 📄 requirements.txt              # Pip dependencies
-├── 📄 POETRY.md                     # Poetry usage guide
 ├── 📄 app.py                        # Flask application entrypoint
 ├── 📄 init_db.py                    # Database initialization script
-├── 📄 mqtt_manage.sh                # MQTT management script
 ├── 📄 README.md                     # Project documentation
 ├── 📄 .env.example                  # Example environment config
-├── 📄 instance/                     # SQLite database files
-├── 📁 esp32_examples/               # ESP32 example code
-│   ├── esp32_mqtt_client.ino
-│   ├── main.cpp
-│   ├── platformio.ini
-│   └── src/
+└── 📄 instance/                     # PostgreSQL data directory
 ```
 
 ### Management Commands
 
-#### Docker Management Script (`./docker-manage.sh`)
+#### Database Management
 
 ```bash
-# Complete setup workflow
-./docker-manage.sh start-all     # Start all services
-./docker-manage.sh init-app      # Initialize environment & database
-./docker-manage.sh run           # Start Flask application
+# Initialize database and create default users
+poetry run python init_db.py
 
-# Development workflow
-./docker-manage.sh status        # Check service status
-./docker-manage.sh logs          # View logs
-./docker-manage.sh logs iotdb # View specific service logs
+# Connect to PostgreSQL
+docker compose exec postgres psql -U iotflow -d iotflow
 
-# Data management
-./docker-manage.sh backup        # Backup SQLite database
-./docker-manage.sh restore backup_file.db  # Restore from backup
-./docker-manage.sh reset         # Reset all data (CAUTION!)
+# Backup database
+docker compose exec postgres pg_dump -U iotflow iotflow > backup.sql
 
-# Database connections
-./docker-manage.sh redis         # Connect to Redis CLI
-./docker-manage.sh iotdb         # Connect to IoTDB CLI
+# Restore database
+docker compose exec -T postgres psql -U iotflow iotflow < backup.sql
 ```
 
-#### Python Management Script (`manage.py`)
+#### Application Management
 
 ```bash
-# Database operations
-poetry run python manage.py init-db                    # Initialize database
-poetry run python manage.py create-device "My Device" # Create test device
+# Start Flask application
+poetry run python app.py
 
-# Application operations  
-poetry run python manage.py run                        # Start Flask app
-poetry run python manage.py test                       # Run test suite
-poetry run python manage.py shell                      # Interactive Python shell
+# Run with Gunicorn (production)
+poetry run gunicorn -w 4 -b 0.0.0.0:5000 app:app
+
+# Run tests
+poetry run pytest tests/ -v
+
+# Run specific test file
+poetry run pytest tests/test_devices.py -v
 ```
 
-### Testing & Simulation
+### Default Users
 
-#### Comprehensive Test Suite
+After running `init_db.py`, the following users are created:
 
-```bash
-# Run all tests
-poetry run python manage.py test
+| Username | Password | Role | User ID |
+|----------|----------|------|---------|
+| admin | admin123 | Admin | (generated UUID) |
+| testuser | test123 | Regular User | (generated UUID) |
 
-# Specific test categories
-poetry run pytest tests/unit/ -v           # Unit tests
-poetry run pytest tests/integration/ -v    # Integration tests
-poetry run pytest tests/api/ -v            # API endpoint tests
-```
-
-#### Device Simulation Options
-
-```bash
-# Advanced MQTT device simulator with profiles
-poetry run python simulators/new_mqtt_device_simulator.py --name TestDevice
-
-# Different device types and profiles
-poetry run python simulators/new_mqtt_device_simulator.py \
-    --name IndustrialSensor --type industrial_sensor --profile industrial --duration 600
-
-# Monitor device activity
-scripts/monitor_mqtt.sh -d TestDevice
-
-# Send commands to devices
-poetry run python scripts/send_device_command.py -d TestDevice -c get_status
-```
+Use these credentials for testing and development. Change passwords in production!
 
 ### Configuration Management
 
@@ -775,49 +715,32 @@ poetry run python scripts/send_device_command.py -d TestDevice -c get_status
 |----------|----------|-------------|---------|
 | **Flask** | `FLASK_ENV` | Environment mode | `development` |
 | | `FLASK_DEBUG` | Debug mode | `True` |
-| | `SECRET_KEY` | Flask secret key | Auto-generated |
-| **Database** | `DATABASE_URL` | Database connection URL | `sqlite:///iotflow.db` |
-| | | SQLite example | `sqlite:///instance/iotflow.db` |
-| | | PostgreSQL example | `postgresql://user:pass@host:5432/db` |
-| | `DB_PRIMARY_PATH` | Primary database file path (SQLite only) | `instance/iotflow.db` |
-| | `DB_FALLBACK_PATH` | Fallback database file path (SQLite only) | `iotflow.db` |
-| **PostgreSQL** | `POSTGRES_DB` | PostgreSQL database name | `iotflow` |
-| | `POSTGRES_USER` | PostgreSQL username | `iotflow_user` |
-| | `POSTGRES_PASSWORD` | PostgreSQL password | `iotflow_password` |
-| | `POSTGRES_HOST` | PostgreSQL host | `postgres` |
-| | `POSTGRES_PORT` | PostgreSQL port | `5432` |
-| **Timestamps** | `TIMESTAMP_FORMAT` | Display format (iso/readable/short/compact) | `readable` |
-| | `TIMESTAMP_TIMEZONE` | Timezone label for display | `UTC` |
-| **Simulator** | `SIMULATOR_TIMESTAMP_FORMAT` | Timestamp format devices send (random/iso/epoch/etc) | `random` |
-| **IoTDB** | `IOTDB_HOST` | IoTDB host address | `localhost` |
-| | `IOTDB_PORT` | IoTDB port | `6667` |
-| | `IOTDB_USER` | IoTDB username | `root` |
-| | `IOTDB_PASSWORD` | IoTDB password | `root` |
-| **Redis** | `REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
-| **MQTT** | `MQTT_HOST` | MQTT broker host | `localhost` |
-| | `MQTT_PORT` | MQTT broker port | `1883` |
-| | `MQTT_USERNAME` | MQTT authentication | `admin` |
-| **Security** | `API_KEY_LENGTH` | Generated API key length | `32` |
+| | `SECRET_KEY` | Flask secret key | `dev-secret-key` |
+| | `HOST` | Server host | `0.0.0.0` |
+| | `PORT` | Server port | `5000` |
+| **Database** | `DATABASE_URL` | PostgreSQL connection URL | `postgresql://iotflow:iotflowpass@postgres:5432/iotflow` |
+| **Security** | `JWT_SECRET_KEY` | JWT token secret | `jwt-secret-key` |
+| | `API_KEY_LENGTH` | Generated API key length | `32` |
 | | `RATE_LIMIT_PER_MINUTE` | API rate limiting | `60` |
+| | `IOTFLOW_ADMIN_TOKEN` | Admin API token | `test` |
+| **Logging** | `LOG_LEVEL` | Logging level | `INFO` |
+| | `LOG_FILE` | Log file path | `logs/iotflow.log` |
+| **API** | `API_VERSION` | API version | `v1` |
+| | `MAX_DEVICES_PER_USER` | Max devices per user | `100` |
 
-#### Service Configuration
+#### PostgreSQL Configuration
 
-**IoTDB Configuration:**
-- Data retention: Configurable per storage group
-- Precision: Millisecond timestamps
-- Storage Groups: `root.iotflow.*`
-- Compression: Configurable compression algorithms
+**Connection Settings:**
+- Host: `postgres` (Docker) or `localhost` (local)
+- Port: `5432`
+- Database: `iotflow`
+- User: `iotflow`
+- Password: `iotflowpass`
 
-**Redis Configuration:** 
-- Memory usage: LRU eviction
-- Persistence: Append-only file
-- Max memory: 256MB
-
-**MQTT Configuration:**
-- Protocol: MQTT 3.1.1 & 5.0
-- Authentication: Username/password
-- TLS: Configurable (port 8883)
-- WebSocket: Available (port 9001)
+**Performance:**
+- Connection pooling via SQLAlchemy
+- Indexed columns for fast queries
+- JSONB support for flexible metadata storage
 
 ## 🚀 Production Deployment
 
@@ -847,9 +770,9 @@ poetry run gunicorn -w 4 -b 0.0.0.0:5000 --statsd-host=localhost:8125 app:app
 ```
 
 #### Database Optimization
-- **SQLite**: WAL mode for concurrent reads
-- **IoTDB**: Appropriate storage group configuration and compression
-- **Redis**: Memory optimization and persistence settings
+- **PostgreSQL**: Connection pooling, prepared statements, and query optimization
+- **Indexes**: Strategic indexes on frequently queried columns
+- **JSONB**: Efficient storage and querying of flexible telemetry data
 
 ### Security Hardening
 
@@ -933,12 +856,8 @@ curl "http://localhost:5000/api/v1/telemetry/status"
 
 **Diagnosis:**
 ```bash
-# Check IoTDB service status
-./docker-manage.sh status
-docker logs iotflow-iotdb
-
-# Test IoTDB connectivity
-poetry run python scripts/check_iotdb_data.py
+# Check PostgreSQL service status
+docker compose ps
 
 # Check Flask application logs
 tail -50 logs/iotflow.log
@@ -1022,10 +941,7 @@ cat mqtt/config/mosquitto.conf
 **Solutions:**
 ```bash
 # Backup current database
-./docker-manage.sh backup
-
-# Reset database (CAUTION: destroys all data)
-./docker-manage.sh reset
+docker compose exec postgres pg_dump -U iotflow iotflow > backup.sql
 
 # Initialize fresh database
 poetry run python manage.py init-db
@@ -1041,109 +957,86 @@ poetry run python manage.py init-db
 
 2. **Database optimization:**
    ```bash
-   # SQLite maintenance
-   sqlite3 instance/iotflow.db "VACUUM;"
+   # PostgreSQL maintenance
+   docker compose exec postgres psql -U iotflow -d iotflow -c "VACUUM ANALYZE;"
    
-   # IoTDB compaction
-   # (handled automatically)
-   ```
-
-3. **Redis cache issues:**
-   ```bash
-   # Clear Redis cache
-   docker exec -it iotflow-redis redis-cli FLUSHALL
+   # Check database size
+   docker compose exec postgres psql -U iotflow -d iotflow -c "SELECT pg_size_pretty(pg_database_size('iotflow'));"
    ```
 
 ### Data Verification Tools
 
 #### Check Data Flow
 ```bash
-# Comprehensive data flow test
-poetry run python scripts/check_device_data_flow.sh
+# Check telemetry data via API
+curl "http://localhost:5000/api/v1/telemetry/1/latest" \
+  -H "X-API-Key: YOUR_API_KEY"
 
-# Manual data verification
-poetry run python scripts/retrieve_iotdb_data.py --device 5 --latest --limit 10
-```
-
-#### Monitor Real-time Activity
-```bash
-# Watch device activity
-poetry run python scripts/monitor_device_data.py --device TestDevice
-
-# Monitor MQTT messages
-./scripts/monitor_mqtt.sh
+# Check device status
+curl "http://localhost:5000/api/v1/devices/status" \
+  -H "X-API-Key: YOUR_API_KEY"
 ```
 
 ## 📚 Advanced Features
 
 ### 🔍 Data Analytics and Querying
 
-#### IoTDB Advanced Queries
+#### PostgreSQL Telemetry Queries
 ```bash
-# Complex time-series analytics
-poetry run python scripts/retrieve_iotdb_data.py \
-    --device 5 \
-    --hours 24 \
-    --measurements temperature humidity \
-    --export-csv device_5_analytics.csv
+# Get aggregated telemetry data
+curl "http://localhost:5000/api/v1/telemetry/1/aggregated?field=temperature&aggregation=mean&window=1h&start_time=-24h" \
+  -H "X-API-Key: YOUR_API_KEY"
 
-# Aggregated data with custom intervals
-poetry run python scripts/retrieve_iotdb_data.py \
-    --device 5 \
-    --aggregate avg \
-    --interval 1h \
-    --hours 48
+# Get historical data with time range
+curl "http://localhost:5000/api/v1/telemetry/1?start_time=-24h&limit=1000" \
+  -H "X-API-Key: YOUR_API_KEY"
 ```
 
-#### Data Export and Integration
+#### Data Export
 ```bash
-# Export device data to multiple formats
-poetry run python scripts/retrieve_iotdb_data.py \
-    --device 5 --hours 6 --export-json device_data.json
+# Export device data via API
+curl "http://localhost:5000/api/v1/telemetry/1?start_time=-24h&limit=10000" \
+  -H "X-API-Key: YOUR_API_KEY" > device_data.json
 
-# Batch export all devices
-for device in $(curl -s http://localhost:5000/api/v1/admin/devices | jq -r '.[].id'); do
-    poetry run python scripts/retrieve_iotdb_data.py \
-        --device $device --hours 24 --export-csv "device_${device}_data.csv"
-done
+# Direct PostgreSQL export
+docker compose exec postgres psql -U iotflow -d iotflow \
+  -c "COPY (SELECT * FROM telemetry_data WHERE device_id='1') TO STDOUT CSV HEADER" > device_1_data.csv
 ```
 
-### 🤖 Advanced Device Simulation
+### 🤖 Device Simulation
 
-#### Custom Device Profiles
-Create custom simulation profiles by modifying the simulator's profile configuration:
-
-```python
-# Example: Custom IoT gateway profile
-"iot_gateway": {
-    "telemetry_types": ["cpu_usage", "memory_usage", "network_traffic", "connected_devices"],
-    "telemetry_interval": 15,
-    "heartbeat_interval": 45,
-    "error_rate": 0.001,
-    "battery_drain_rate": 0.0  # Powered device
-}
-```
-
-#### Fleet Simulation
+#### Simulating Devices
 ```bash
-# Simulate multiple devices with different profiles
-for i in {1..5}; do
-    poetry run python simulators/new_mqtt_device_simulator.py \
-        --name "FleetDevice_$i" \
-        --profile $([ $((i % 2)) -eq 0 ] && echo "high_frequency" || echo "energy_efficient") \
-        --duration 1800 &
-done
+# Create test devices via API
+curl -X POST http://localhost:5000/api/v1/devices/register \
+  -H "Content-Type: application/json" \
+  -H "X-User-ID: YOUR_USER_ID" \
+  -d '{
+    "name": "TestDevice1",
+    "device_type": "sensor",
+    "location": "Lab"
+  }'
+
+# Submit test telemetry
+curl -X POST http://localhost:5000/api/v1/telemetry \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {
+      "temperature": 25.5,
+      "humidity": 60.0
+    }
+  }'
 ```
 
 ### 🔐 Security and Authentication
 
 #### API Key Management
 ```bash
-# Generate new API key for existing device
-poetry run python manage.py regenerate-api-key --device-id 5
-
-# List all active API keys (admin only)
-poetry run python manage.py list-api-keys
+# API keys are automatically generated during device registration
+# To get device credentials including API key:
+curl "http://localhost:5000/api/v1/devices/credentials" \
+  -H "X-API-Key: YOUR_API_KEY"
 ```
 
 #### Advanced Rate Limiting
@@ -1155,22 +1048,16 @@ Configure per-device and per-endpoint rate limiting in `src/middleware/auth.py`:
 
 ### 📊 Monitoring and Alerting
 
-#### Custom Metrics
-```bash
-# Device-specific monitoring
-poetry run python scripts/monitor_device_data.py \
-    --device TestDevice \
-    --alert-threshold temperature:30 \
-    --alert-threshold battery:20
-```
-
 #### System Health Monitoring
 ```bash
-# Comprehensive system health check
-poetry run python scripts/system_health_check.py
+# Basic health check
+curl http://localhost:5000/health
 
-# Service-specific health checks
-curl http://localhost:5000/health?include=iotdb,redis,mqtt
+# Detailed health check
+curl "http://localhost:5000/health?detailed=true"
+
+# Telemetry system status
+curl http://localhost:5000/api/v1/telemetry/status
 ```
 
 ## 🔮 Future Roadmap
@@ -1237,8 +1124,8 @@ poetry install --with dev
 cp .env.example .env
 
 # Start services
-./docker-manage.sh start-all
-./docker-manage.sh init-app
+docker compose up -d
+poetry run python init_db.py
 
 # Run in development mode
 FLASK_ENV=development poetry run python app.py
@@ -1297,39 +1184,39 @@ A: Use one of these approaches:
 ```
 
 **Q: Why am I getting HTTP 500 errors when submitting telemetry?**
-A: This usually indicates IoTDB connection issues. Check:
-1. IoTDB service status: `docker logs iotflow-iotdb`
-2. Network connectivity: `telnet localhost 6667`
-3. Python IoTDB client: `poetry run python scripts/check_iotdb_data.py`
+A: This usually indicates PostgreSQL connection issues. Check:
+1. PostgreSQL service status: `docker compose ps`
+2. Database connectivity: `docker compose exec postgres psql -U iotflow -d iotflow -c "SELECT 1;"`
+3. Application logs: `tail -f logs/iotflow.log`
 
 **Q: How can I monitor device activity in real-time?**
-A: Use the monitoring tools:
+A: Use the API endpoints:
 ```bash
-# Monitor specific device
-poetry run python scripts/monitor_device_data.py --device TestDevice
+# Get latest telemetry
+curl "http://localhost:5000/api/v1/telemetry/1/latest" -H "X-API-Key: YOUR_API_KEY"
 
-# Monitor MQTT messages
-./scripts/monitor_mqtt.sh
+# Get device status
+curl "http://localhost:5000/api/v1/devices/status" -H "X-API-Key: YOUR_API_KEY"
 
-# Check device logs
-tail -f logs/device_TestDevice.log
+# Check application logs
+tail -f logs/iotflow.log
 ```
 
 ### Technical Questions
 
 **Q: What data types are supported for telemetry?**
-A: IoTDB supports:
-- **Numeric**: INT32, INT64, FLOAT, DOUBLE (for sensor readings)
-- **Text**: STRING (for status messages, JSON objects)
+A: PostgreSQL supports:
+- **Numeric**: INTEGER, FLOAT, DOUBLE (for sensor readings)
+- **Text**: VARCHAR, TEXT (for status messages)
 - **Boolean**: BOOLEAN (for device states)
-- **Complex**: JSON objects (automatically converted to TEXT)
+- **Complex**: JSONB (for flexible metadata and nested objects)
 
 **Q: How is data stored and organized?**
 A: 
-- **Device metadata**: SQLite database (`instance/iotflow.db`)
-- **Telemetry data**: IoTDB time-series database (`root.iotflow.devices.device_{id}`)
-- **Session data**: Redis cache for rate limiting and authentication
-- **MQTT messages**: Real-time pub/sub (not persisted)
+- **All data**: PostgreSQL database (users, devices, telemetry, charts)
+- **Telemetry data**: `telemetry_data` table with JSONB metadata support
+- **Device metadata**: `devices` table with user relationships
+- **User data**: `users` table with authentication
 
 **Q: Can I use this in production?**
 A: Yes, with proper configuration:
@@ -1342,8 +1229,8 @@ A: Yes, with proper configuration:
 **Q: How do I scale the platform for more devices?**
 A: Scaling strategies:
 1. **Horizontal scaling**: Multiple Flask instances behind load balancer
-2. **Database scaling**: PostgreSQL with read replicas
-3. **IoTDB clustering**: Distributed IoTDB setup
+2. **Database scaling**: PostgreSQL with read replicas and connection pooling
+3. **Caching**: Add Redis for frequently accessed data
 4. **Message queuing**: Add Apache Kafka for high-throughput scenarios
 5. **Microservices**: Split into device management, telemetry, and analytics services
 
@@ -1359,26 +1246,25 @@ A:
 **Q: How do I add custom telemetry fields?**
 A: Telemetry fields are flexible:
 ```python
-# In device simulator or API call
+# In API call
 "data": {
     "temperature": 25.0,
-    "custom_field": "any_value",
+    "custom_field": "any_value"
+},
+"metadata": {
     "complex_data": {"nested": "object"}
 }
 ```
-IoTDB will automatically create time series for new fields.
+PostgreSQL stores each measurement as a separate row with JSONB metadata support.
 
 **Q: How do I backup and restore data?**
 A: 
 ```bash
-# Backup SQLite database
-./docker-manage.sh backup
-
-# Backup IoTDB data
-docker exec iotflow-iotdb iotdb-export.sh -h localhost -p 6667 -u root -pw root -t /tmp/backup
+# Backup PostgreSQL database
+docker compose exec postgres pg_dump -U iotflow iotflow > backup.sql
 
 # Restore database
-./docker-manage.sh restore backup_file.db
+docker compose exec -T postgres psql -U iotflow iotflow < backup.sql
 ```
 
 ## 📋 Quick Reference
@@ -1386,27 +1272,23 @@ docker exec iotflow-iotdb iotdb-export.sh -h localhost -p 6667 -u root -pw root 
 ### Essential Commands
 ```bash
 # Complete setup
-./docker-manage.sh start-all && ./docker-manage.sh init-app && ./docker-manage.sh run
-
-# Test device simulation
-poetry run python simulators/new_mqtt_device_simulator.py --name QuickTest --duration 60
+docker compose up -d && poetry run python init_db.py && poetry run python app.py
 
 # Check system health
 curl http://localhost:5000/health
 
 # View logs
-./docker-manage.sh logs
+docker compose logs -f
 
-# Reset everything (CAUTION)
-./docker-manage.sh reset
+# Stop all services
+docker compose down
 ```
 
 ### API Endpoints Summary
 | Purpose | Method | Endpoint | Authentication |
 |---------|--------|----------|----------------|
 | Register device | POST | `/api/v1/devices/register` | None |
-| Submit telemetry (HTTP) | POST | `/api/v1/devices/telemetry` | API Key |
-| Submit telemetry (REST) | POST | `/api/v1/telemetry` | API Key |
+| Submit telemetry | POST | `/api/v1/telemetry` | API Key |
 | Submit telemetry (MQTT) | POST | `/api/v1/mqtt/telemetry/{device_id}` | API Key |
 | Get latest telemetry | GET | `/api/v1/telemetry/{device_id}/latest` | API Key* |
 | Get device history | GET | `/api/v1/telemetry/{device_id}?start_time=-24h&limit=100` | API Key* |

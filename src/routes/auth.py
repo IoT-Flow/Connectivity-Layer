@@ -19,7 +19,7 @@ def login():
     tags:
       - Authentication
     summary: User login
-    description: Authenticate user and receive JWT token
+    description: Authenticate user and receive user information
     requestBody:
       required: true
       content:
@@ -102,7 +102,7 @@ def login():
         
         current_app.logger.info(f"User logged in: {username} (ID: {user.user_id})")
         
-        # Return user info (in production, you'd return a JWT token)
+        # Return user info
         return jsonify({
             "status": "success",
             "message": "Login successful",

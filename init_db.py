@@ -24,9 +24,13 @@ def init_database():
     
     with app.app_context():
         try:
-            print("\n1. Creating SQLAlchemy tables (users, devices, charts)...")
+            print("\n1. Creating SQLAlchemy tables...")
+            print("   - users")
+            print("   - devices")
+            print("   - device_groups (name, description, user_id, color)")
+            print("   - device_group_members (group_id, device_id, added_at)")
             db.create_all()
-            print("   ✓ SQLAlchemy tables created")
+            print("   ✓ All tables created successfully")
             
             print("\n2. Creating telemetry_data table...")
             telemetry_service = PostgresTelemetryService()
@@ -66,6 +70,12 @@ def init_database():
             print("\n" + "="*60)
             print("✓ Database initialization completed successfully!")
             print("="*60)
+            print("\nDatabase Schema:")
+            print("  - users: User accounts and authentication")
+            print("  - devices: IoT devices registered to users")
+            print("  - device_groups: Groups for organizing devices")
+            print("  - device_group_members: Device-to-group relationships")
+            print("  - telemetry_data: Time-series telemetry data")
             print("\nUser Credentials:")
             print("  - admin / admin123 (admin)")
             print("  - testuser / test123 (regular user)")

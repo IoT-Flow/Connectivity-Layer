@@ -152,99 +152,88 @@ class Device(db.Model):
 # Removed DeviceAuth and DeviceConfiguration models - tables no longer exist
 
 
-class Chart(db.Model):
-    """Chart model for storing user-specific chart configurations"""
+# Chart models removed - no longer needed
 
-    __tablename__ = "charts"
 
-    id = db.Column(db.String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = db.Column(db.String(255), nullable=False)
-    title = db.Column(db.String(255))
+class DeviceGroup(db.Model):
+    """Device group for organizing devices"""
+    
+    __tablename__ = "device_groups"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    type = db.Column(db.String(50), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
-    time_range = db.Column(db.String(20), default="1h")
-    refresh_interval = db.Column(db.Integer, default=30)
-    aggregation = db.Column(db.String(20), default="none")
-    group_by = db.Column(db.String(50), default="device")
-    appearance_config = db.Column(db.JSON)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    color = db.Column(db.String(7))  # Hex color
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
     )
-    is_active = db.Column(db.Boolean, default=True)
-
+    
     # Relationships
-    devices = db.relationship("ChartDevice", backref="chart", lazy="dynamic", cascade="all, delete-orphan")
-    measurements = db.relationship(
-        "ChartMeasurement",
-        backref="chart",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-
+    members = db.relationship("DeviceGroupMember", backref="group", lazy="dynamic", cascade="all, delete-orphan")
+    
+    # Indexes
     __table_args__ = (
-        db.Index("idx_user_charts", "user_id"),
-        db.Index("idx_chart_type", "type"),
-        db.Index("idx_created_at", "created_at"),
+        db.Index("idx_user_groups", "user_id"),
+        db.Index("idx_group_name", "name"),
     )
-
-    def to_dict(self):
-        """Convert chart to dictionary"""
-        return {
+    
+    def __repr__(self):
+        return f"<DeviceGroup {self.name}>"
+    
+    def to_dict(self, include_devices=False):
+        """Convert group to dictionary"""
+        result = {
             'id': self.id,
             'name': self.name,
-            'title': self.title,
             'description': self.description,
-            'type': self.type,
             'user_id': self.user_id,
-            'time_range': self.time_range,
-            'refresh_interval': self.refresh_interval,
-            'aggregation': self.aggregation,
-            'group_by': self.group_by,
-            'appearance_config': self.appearance_config,
+            'color': self.color,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'is_active': self.is_active
+            'device_count': self.members.count()
         }
+        
+        if include_devices:
+            result['devices'] = [member.device.to_dict() for member in self.members]
+        
+        return result
 
 
-class ChartDevice(db.Model):
-    """ChartDevice model for associating devices with charts"""
-
-    __tablename__ = "chart_devices"
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    chart_id = db.Column(db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False)
+class DeviceGroupMember(db.Model):
+    """Many-to-many relationship between groups and devices"""
+    
+    __tablename__ = "device_group_members"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("device_groups.id", ondelete="CASCADE"), nullable=False)
     device_id = db.Column(db.Integer, db.ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
+    added_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    device = db.relationship("Device", backref="group_memberships")
+    
+    # Constraints and Indexes
     __table_args__ = (
-        db.UniqueConstraint("chart_id", "device_id", name="unique_chart_device"),
-        db.Index("idx_chart_devices", "chart_id"),
-        db.Index("idx_device_charts", "device_id"),
+        db.UniqueConstraint("group_id", "device_id", name="unique_group_device"),
+        db.Index("idx_group_members", "group_id"),
+        db.Index("idx_device_groups", "device_id"),
     )
-
-
-class ChartMeasurement(db.Model):
-    """ChartMeasurement model for storing measurement configurations in charts"""
-
-    __tablename__ = "chart_measurements"
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    chart_id = db.Column(db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False)
-    measurement_name = db.Column(db.String(255), nullable=False)
-    display_name = db.Column(db.String(255))
-    color = db.Column(db.String(7))
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
-    __table_args__ = (
-        db.UniqueConstraint("chart_id", "measurement_name", name="unique_chart_measurement"),
-        db.Index("idx_chart_measurements", "chart_id"),
-        db.Index("idx_measurement_name", "measurement_name"),
-    )
+    
+    def __repr__(self):
+        return f"<DeviceGroupMember group={self.group_id} device={self.device_id}>"
+    
+    def to_dict(self):
+        """Convert membership to dictionary"""
+        return {
+            'id': self.id,
+            'group_id': self.group_id,
+            'device_id': self.device_id,
+            'added_at': self.added_at.isoformat() if self.added_at else None
+        }
 
 
 

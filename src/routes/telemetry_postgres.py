@@ -415,22 +415,83 @@ def get_telemetry_status():
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 
-@telemetry_bp.route("/user/<int:user_id>", methods=["GET"])
+@telemetry_bp.route("/user/<user_id>", methods=["GET"])
 def get_user_telemetry(user_id):
-    """Get telemetry data for all devices belonging to a user"""
+    """Get telemetry data for all devices belonging to a user
+    ---
+    tags:
+      - Telemetry
+    summary: Get user's telemetry data
+    description: Get telemetry data for all devices belonging to a user (requires user authentication or admin)
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: User UUID
+      - name: X-User-ID
+        in: header
+        schema:
+          type: string
+        description: Requesting user's UUID (must match user_id or use admin token)
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      - name: start_time
+        in: query
+        schema:
+          type: string
+          default: "-24h"
+      - name: end_time
+        in: query
+        schema:
+          type: string
+    responses:
+      200:
+        description: User telemetry data
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden
+    """
     try:
-        # For now, we'll require authentication via API key from any device owned by the user
-        api_key = request.headers.get("X-API-Key")
-        if not api_key:
-            return jsonify({"error": "API key required"}), 401
-
-        # Find device by API key and verify it belongs to the requested user
-        device = Device.query.filter_by(api_key=api_key).first()
-        if not device:
-            return jsonify({"error": "Invalid API key"}), 401
-
-        if device.user_id != user_id:
-            return jsonify({"error": "Forbidden: user mismatch"}), 403
+        # Check authentication - either admin token or matching user ID
+        auth_header = request.headers.get("Authorization", "")
+        requesting_user_id = request.headers.get("X-User-ID")
+        
+        # Check if admin
+        is_admin = False
+        if auth_header.startswith("admin "):
+            import os
+            ADMIN_TOKEN = os.environ.get("IOTFLOW_ADMIN_TOKEN", "test")
+            token = auth_header.split(" ", 1)[1] if len(auth_header.split(" ", 1)) > 1 else ""
+            is_admin = (token == ADMIN_TOKEN)
+        
+        # If not admin, must provide matching user ID
+        if not is_admin:
+            if not requesting_user_id:
+                return jsonify({
+                    "error": "Authentication required",
+                    "message": "X-User-ID header required"
+                }), 401
+            
+            if requesting_user_id != user_id:
+                return jsonify({
+                    "error": "Forbidden",
+                    "message": "You can only view your own telemetry data"
+                }), 403
+        
+        # Verify user exists
+        from src.models import User
+        user = User.query.filter_by(user_id=user_id).first()
+        if not user:
+            return jsonify({
+                "error": "User not found",
+                "message": f"No user found with ID: {user_id}"
+            }), 404
 
         # Parse query parameters
         limit = min(int(request.args.get("limit", 100)), 1000)
@@ -440,7 +501,7 @@ def get_user_telemetry(user_id):
         # Get telemetry data from PostgreSQL for all user's devices
         try:
             telemetry_data = postgres_service.get_user_telemetry(
-                user_id=str(user_id),
+                user_id=str(user.id),  # Use internal user ID
                 start_time=start_time,
                 end_time=end_time,
                 limit=limit,
@@ -448,7 +509,7 @@ def get_user_telemetry(user_id):
 
             # Get telemetry count for the user
             telemetry_count = postgres_service.get_user_telemetry_count(
-                user_id=str(user_id), 
+                user_id=str(user.id),  # Use internal user ID
                 start_time=start_time
             )
 

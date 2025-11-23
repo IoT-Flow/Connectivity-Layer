@@ -4,80 +4,12 @@ User management routes
 
 from flask import Blueprint, request, jsonify, current_app
 from src.models import User, db
-from src.middleware.auth import require_admin_token, require_admin_jwt
+from src.middleware.auth import require_admin_token
 from src.middleware.security import security_headers_middleware
 from datetime import datetime, timezone
 
 # Create blueprint for user routes
 user_bp = Blueprint("users", __name__, url_prefix="/api/v1/users")
-
-
-@user_bp.route("", methods=["POST"])
-@security_headers_middleware()
-def create_user():
-    """Create a new user"""
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-        
-        username = data.get('username')
-        email = data.get('email')
-        password = data.get('password')
-        
-        if not username or not email or not password:
-            return jsonify({
-                "error": "Missing required fields",
-                "message": "username, email, and password are required"
-            }), 400
-        
-        # Check if username already exists
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            return jsonify({
-                "error": "Username already exists",
-                "message": f"User with username '{username}' already exists"
-            }), 409
-        
-        # Check if email already exists
-        existing_email = User.query.filter_by(email=email).first()
-        if existing_email:
-            return jsonify({
-                "error": "Email already exists",
-                "message": f"User with email '{email}' already exists"
-            }), 409
-        
-        # Create new user
-        user = User(
-            username=username,
-            email=email
-        )
-        user.set_password(password)
-        
-        # Set optional fields
-        if 'is_admin' in data:
-            user.is_admin = data['is_admin']
-        
-        db.session.add(user)
-        db.session.commit()
-        
-        current_app.logger.info(f"User created: {username} (ID: {user.user_id})")
-        
-        return jsonify({
-            "status": "success",
-            "message": "User created successfully",
-            "user": user.to_dict()
-        }), 201
-    
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error creating user: {str(e)}")
-        return jsonify({
-            "error": "User creation failed",
-            "message": "An error occurred while creating the user"
-        }), 500
 
 
 @user_bp.route("/<user_id>", methods=["GET"])
@@ -88,7 +20,7 @@ def get_user(user_id):
     tags:
       - Users
     summary: Get user details
-    description: Get details of a specific user by ID
+    description: Get details of a specific user by ID (requires User ID header to match or admin token)
     parameters:
       - name: user_id
         in: path
@@ -96,13 +28,48 @@ def get_user(user_id):
         schema:
           type: string
         description: User UUID
+      - name: X-User-ID
+        in: header
+        schema:
+          type: string
+        description: Requesting user's UUID (must match user_id or use admin token)
     responses:
       200:
         description: User details
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden - can only view own profile
       404:
         description: User not found
     """
     try:
+        # Check authentication - either admin token or matching user ID
+        auth_header = request.headers.get("Authorization", "")
+        requesting_user_id = request.headers.get("X-User-ID")
+        
+        # Check if admin
+        is_admin = False
+        if auth_header.startswith("admin "):
+            import os
+            ADMIN_TOKEN = os.environ.get("IOTFLOW_ADMIN_TOKEN", "test")
+            token = auth_header.split(" ", 1)[1] if len(auth_header.split(" ", 1)) > 1 else ""
+            is_admin = (token == ADMIN_TOKEN)
+        
+        # If not admin, must provide matching user ID
+        if not is_admin:
+            if not requesting_user_id:
+                return jsonify({
+                    "error": "Authentication required",
+                    "message": "X-User-ID header required"
+                }), 401
+            
+            if requesting_user_id != user_id:
+                return jsonify({
+                    "error": "Forbidden",
+                    "message": "You can only view your own profile"
+                }), 403
+        
         user = User.query.filter_by(user_id=user_id).first()
         
         if not user:
@@ -126,7 +93,7 @@ def get_user(user_id):
 
 @user_bp.route("", methods=["GET"])
 @security_headers_middleware()
-@require_admin_jwt
+@require_admin_token
 def list_users():
     """List all users (Admin only)
     ---
@@ -189,13 +156,18 @@ def update_user(user_id):
     tags:
       - Users
     summary: Update user
-    description: Update user information
+    description: Update user information (requires User ID header to match or admin token)
     parameters:
       - name: user_id
         in: path
         required: true
         schema:
           type: string
+      - name: X-User-ID
+        in: header
+        schema:
+          type: string
+        description: Requesting user's UUID (must match user_id or use admin token)
     requestBody:
       content:
         application/json:
@@ -213,10 +185,40 @@ def update_user(user_id):
     responses:
       200:
         description: User updated
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden - can only update own profile
       404:
         description: User not found
     """
     try:
+        # Check authentication - either admin token or matching user ID
+        auth_header = request.headers.get("Authorization", "")
+        requesting_user_id = request.headers.get("X-User-ID")
+        
+        # Check if admin
+        is_admin = False
+        if auth_header.startswith("admin "):
+            import os
+            ADMIN_TOKEN = os.environ.get("IOTFLOW_ADMIN_TOKEN", "test")
+            token = auth_header.split(" ", 1)[1] if len(auth_header.split(" ", 1)) > 1 else ""
+            is_admin = (token == ADMIN_TOKEN)
+        
+        # If not admin, must provide matching user ID
+        if not is_admin:
+            if not requesting_user_id:
+                return jsonify({
+                    "error": "Authentication required",
+                    "message": "X-User-ID header required"
+                }), 401
+            
+            if requesting_user_id != user_id:
+                return jsonify({
+                    "error": "Forbidden",
+                    "message": "You can only update your own profile"
+                }), 403
+        
         user = User.query.filter_by(user_id=user_id).first()
         
         if not user:
@@ -281,7 +283,7 @@ def update_user(user_id):
 
 @user_bp.route("/<user_id>", methods=["DELETE"])
 @security_headers_middleware()
-@require_admin_jwt
+@require_admin_token
 def delete_user(user_id):
     """Delete or deactivate a user (Admin only)
     ---

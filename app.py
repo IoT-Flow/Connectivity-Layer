@@ -10,10 +10,10 @@ from src.routes.devices import device_bp
 from src.routes.admin import admin_bp
 from src.routes.users import user_bp
 from src.routes.auth import auth_bp
-from src.routes.charts import chart_bp
 
 # Import PostgreSQL telemetry routes
 from src.routes.telemetry_postgres import telemetry_bp
+from src.routes.groups import groups_bp
 from src.utils.logging import setup_logging
 from src.middleware.monitoring import HealthMonitor
 from src.middleware.security import comprehensive_error_handler, security_headers_middleware
@@ -35,12 +35,27 @@ def create_app(config_name=None):
     db.init_app(app)
     
     # Enhanced CORS configuration
-    CORS(app, 
-         origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-User-ID"],
-         expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"]
-    )
+    # Allow all origins in development, restrict in production
+    cors_origins = os.environ.get('CORS_ORIGINS', '*')
+    if cors_origins == '*':
+        # Development mode - allow all origins
+        CORS(app, 
+             resources={r"/api/*": {"origins": "*"}},
+             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-User-ID"],
+             expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
+             supports_credentials=True
+        )
+    else:
+        # Production mode - restrict to specific origins
+        allowed_origins = cors_origins.split(',')
+        CORS(app, 
+             origins=allowed_origins,
+             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-User-ID"],
+             expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
+             supports_credentials=True
+        )
     
     # Initialize Swagger/OpenAPI documentation
     swagger_config = {
@@ -100,8 +115,8 @@ def create_app(config_name=None):
     app.register_blueprint(admin_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(auth_bp)
-    app.register_blueprint(chart_bp)
     app.register_blueprint(telemetry_bp)
+    app.register_blueprint(groups_bp)
     
     # Enhanced health check endpoint
     @app.route('/health', methods=['GET'])
