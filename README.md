@@ -353,7 +353,9 @@ The IoTFlow platform provides a comprehensive API for device management, telemet
 | GET    | `/api/v1/users/{user_id}`     | Get user details            | User ID or Admin |
 | GET    | `/api/v1/users`               | List all users              | Admin Token   |
 | PUT    | `/api/v1/users/{user_id}`     | Update user                 | User ID or Admin |
-| DELETE | `/api/v1/users/{user_id}`     | Delete/deactivate user      | Admin Token   |
+| PATCH  | `/api/v1/users/{user_id}/deactivate` | Deactivate user (soft delete) | Admin Token |
+| PATCH  | `/api/v1/users/{user_id}/activate` | Activate user | Admin Token |
+| DELETE | `/api/v1/users/{user_id}`     | Delete user permanently (hard delete) | Admin Token |
 
 ### 🔐 Authentication
 

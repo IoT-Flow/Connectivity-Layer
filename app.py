@@ -41,7 +41,7 @@ def create_app(config_name=None):
         # Development mode - allow all origins
         CORS(app, 
              resources={r"/api/*": {"origins": "*"}},
-             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
              allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-User-ID"],
              expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
              supports_credentials=True
@@ -51,7 +51,7 @@ def create_app(config_name=None):
         allowed_origins = cors_origins.split(',')
         CORS(app, 
              origins=allowed_origins,
-             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
              allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-User-ID"],
              expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
              supports_credentials=True

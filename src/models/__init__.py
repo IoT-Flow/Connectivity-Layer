@@ -39,7 +39,7 @@ class User(db.Model):
     last_login = db.Column(db.DateTime(timezone=True))
 
     # Relationships
-    devices = db.relationship("Device", backref="owner", lazy="dynamic")
+    devices = db.relationship("Device", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (
@@ -101,7 +101,7 @@ class Device(db.Model):
     last_seen = db.Column(db.DateTime(timezone=True))
 
     # Foreign Key Relationship to User
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
 
     # Relationships
     # Removed: auth_records, configurations (tables no longer exist)

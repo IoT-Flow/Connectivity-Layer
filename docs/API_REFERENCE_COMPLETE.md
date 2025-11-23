@@ -636,25 +636,98 @@ Authorization: admin <admin_token>
 
 ---
 
-### Delete User
-**DELETE** `/api/v1/users/{user_id}`
+### Deactivate User (Soft Delete)
+**PATCH** `/api/v1/users/{user_id}/deactivate`
 
 **Authentication:** Admin Token
 
-**Description:** Delete or deactivate user (admin only)
+**Description:** Deactivate a user account without deleting data (soft delete). User will not be able to log in but data is preserved. Requires admin privileges.
 
-**Request Headers:**
-```
-Authorization: admin <admin_token>
-```
+**Headers:**
+- `Authorization` (required): Admin token (format: "admin <token>")
+
+**Path Parameters:**
+- `user_id` (required): User UUID
 
 **Response (200):**
 ```json
 {
   "status": "success",
-  "message": "User deleted successfully"
+  "message": "User 'john_doe' deactivated successfully"
 }
 ```
+
+**Response (404):**
+```json
+{
+  "error": "User not found",
+  "message": "No user found with ID: {user_id}"
+}
+```
+
+---
+
+### Activate User
+**PATCH** `/api/v1/users/{user_id}/activate`
+
+**Authentication:** Admin Token
+
+**Description:** Reactivate a previously deactivated user account. Requires admin privileges.
+
+**Headers:**
+- `Authorization` (required): Admin token (format: "admin <token>")
+
+**Path Parameters:**
+- `user_id` (required): User UUID
+
+**Response (200):**
+```json
+{
+  "status": "success",
+  "message": "User 'john_doe' activated successfully"
+}
+```
+
+**Response (404):**
+```json
+{
+  "error": "User not found",
+  "message": "No user found with ID: {user_id}"
+}
+```
+
+---
+
+### Delete User (Hard Delete)
+**DELETE** `/api/v1/users/{user_id}`
+
+**Authentication:** Admin Token
+
+**Description:** Permanently delete a user account and all associated data (hard delete). This action cannot be undone. Requires admin privileges.
+
+**Headers:**
+- `Authorization` (required): Admin token (format: "admin <token>")
+
+**Path Parameters:**
+- `user_id` (required): User UUID
+
+**Response (200):**
+```json
+{
+  "status": "success",
+  "message": "User 'john_doe' deleted permanently"
+}
+```
+
+**Response (404):**
+```json
+{
+  "error": "User not found",
+  "message": "No user found with ID: {user_id}"
+}
+```
+
+**Note:** This permanently removes the user and all associated devices, groups, and data from the database due to CASCADE delete.
 
 ---
 
@@ -1327,7 +1400,7 @@ Authorization: admin <admin_token>
 
 ## 📊 Complete Endpoint Summary
 
-### Total: 41 Endpoints
+### Total: 43 Endpoints
 
 #### Device Management (11 endpoints)
 | Method | Endpoint | Auth | Description |
@@ -1353,13 +1426,15 @@ Authorization: admin <admin_token>
 | GET | `/api/v1/telemetry/status` | None | Telemetry service status |
 | GET | `/api/v1/telemetry/user/{user_id}` | User ID | Get user's telemetry |
 
-#### User Management (4 endpoints)
+#### User Management (6 endpoints)
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/api/v1/users/{user_id}` | User ID or Admin | Get user details (own profile or admin) |
 | GET | `/api/v1/users` | Admin | List all users |
 | PUT | `/api/v1/users/{user_id}` | User ID or Admin | Update user (own profile or admin) |
-| DELETE | `/api/v1/users/{user_id}` | Admin | Delete user |
+| PATCH | `/api/v1/users/{user_id}/deactivate` | Admin | Deactivate user (soft delete) |
+| PATCH | `/api/v1/users/{user_id}/activate` | Admin | Activate deactivated user |
+| DELETE | `/api/v1/users/{user_id}` | Admin | Delete user permanently (hard delete) |
 
 #### Authentication (3 endpoints)
 | Method | Endpoint | Auth | Description |

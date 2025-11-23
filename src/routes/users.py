@@ -285,12 +285,72 @@ def update_user(user_id):
 @security_headers_middleware()
 @require_admin_token
 def delete_user(user_id):
-    """Delete or deactivate a user (Admin only)
+    """Delete a user permanently (Admin only)
     ---
     tags:
       - Users
     summary: Delete user (Admin only)
-    description: Deactivate a user account (soft delete). Requires admin privileges.
+    description: Permanently delete a user account and all associated data. Requires admin privileges.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: User deleted successfully
+      401:
+        description: Unauthorized - invalid or missing token
+      403:
+        description: Forbidden - admin privileges required
+      404:
+        description: User not found
+    """
+    try:
+        user = User.query.filter_by(user_id=user_id).first()
+        
+        if not user:
+            return jsonify({
+                "error": "User not found",
+                "message": f"No user found with ID: {user_id}"
+            }), 404
+        
+        username = user.username
+        
+        # Hard delete - permanently remove from database
+        # Note: Associated devices will be deleted due to CASCADE foreign key
+        db.session.delete(user)
+        db.session.commit()
+        
+        current_app.logger.info(f"User permanently deleted: {username} (ID: {user_id})")
+        
+        return jsonify({
+            "status": "success",
+            "message": f"User '{username}' deleted permanently"
+        }), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting user: {str(e)}")
+        return jsonify({
+            "error": "User deletion failed",
+            "message": "An error occurred while deleting the user"
+        }), 500
+
+
+@user_bp.route("/<user_id>/deactivate", methods=["PATCH"])
+@security_headers_middleware()
+@require_admin_token
+def deactivate_user(user_id):
+    """Deactivate a user account (soft delete) (Admin only)
+    ---
+    tags:
+      - Users
+    summary: Deactivate user (Admin only)
+    description: Deactivate a user account without deleting data. User will not be able to log in. Requires admin privileges.
     security:
       - BearerAuth: []
     parameters:
@@ -308,8 +368,69 @@ def delete_user(user_id):
         description: Forbidden - admin privileges required
       404:
         description: User not found
+    """
+    try:
+        user = User.query.filter_by(user_id=user_id).first()
+        
+        if not user:
+            return jsonify({
+                "error": "User not found",
+                "message": f"No user found with ID: {user_id}"
+            }), 404
+        
+        # Check if already deactivated
+        if not user.is_active:
+            return jsonify({
+                "status": "success",
+                "message": f"User '{user.username}' is already deactivated"
+            }), 200
+        
+        # Soft delete - deactivate instead of deleting
+        user.is_active = False
+        user.updated_at = datetime.now(timezone.utc)
+        db.session.commit()
+        
+        current_app.logger.info(f"User deactivated: {user.username} (ID: {user.user_id})")
+        
+        return jsonify({
+            "status": "success",
+            "message": f"User '{user.username}' deactivated successfully"
+        }), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deactivating user: {str(e)}")
+        return jsonify({
+            "error": "User deactivation failed",
+            "message": "An error occurred while deactivating the user"
+        }), 500
+
+
+@user_bp.route("/<user_id>/activate", methods=["PATCH"])
+@security_headers_middleware()
+@require_admin_token
+def activate_user(user_id):
+    """Activate a deactivated user account (Admin only)
+    ---
+    tags:
+      - Users
+    summary: Activate user (Admin only)
+    description: Reactivate a previously deactivated user account. Requires admin privileges.
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
       200:
-        description: User deactivated
+        description: User activated successfully
+      401:
+        description: Unauthorized - invalid or missing token
+      403:
+        description: Forbidden - admin privileges required
       404:
         description: User not found
     """
@@ -322,22 +443,29 @@ def delete_user(user_id):
                 "message": f"No user found with ID: {user_id}"
             }), 404
         
-        # Soft delete - deactivate instead of deleting
-        user.is_active = False
+        # Check if already active
+        if user.is_active:
+            return jsonify({
+                "status": "success",
+                "message": f"User '{user.username}' is already active"
+            }), 200
+        
+        # Activate user
+        user.is_active = True
         user.updated_at = datetime.now(timezone.utc)
         db.session.commit()
         
-        current_app.logger.info(f"User deactivated: {user.username} (ID: {user.user_id})")
+        current_app.logger.info(f"User activated: {user.username} (ID: {user.user_id})")
         
         return jsonify({
             "status": "success",
-            "message": "User deactivated successfully"
+            "message": f"User '{user.username}' activated successfully"
         }), 200
     
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error deleting user: {str(e)}")
+        current_app.logger.error(f"Error activating user: {str(e)}")
         return jsonify({
-            "error": "User deletion failed",
-            "message": "An error occurred while deleting the user"
+            "error": "User activation failed",
+            "message": "An error occurred while activating the user"
         }), 500

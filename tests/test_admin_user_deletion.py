@@ -140,8 +140,8 @@ class TestAdminOnlyUserDeletion:
         data = response.get_json()
         assert data['status'] == 'success'
     
-    def test_deleted_user_is_deactivated(self, app, client, admin_user, target_user):
-        """Test that deleted user is deactivated (soft delete)"""
+    def test_deleted_user_is_removed(self, app, client, admin_user, target_user):
+        """Test that deleted user is permanently removed (hard delete)"""
         admin_token = get_admin_token()
         
         response = client.delete(
@@ -151,11 +151,10 @@ class TestAdminOnlyUserDeletion:
         
         assert response.status_code == 200
         
-        # Verify user is deactivated
+        # Verify user is permanently deleted
         with app.app_context():
             user = User.query.filter_by(user_id=target_user['user_id']).first()
-            assert user is not None  # User still exists
-            assert user.is_active == False  # But is deactivated
+            assert user is None  # User no longer exists in database
     
     def test_delete_nonexistent_user(self, app, client, admin_user):
         """Test deleting non-existent user returns 404"""

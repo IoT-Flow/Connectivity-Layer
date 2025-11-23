@@ -274,14 +274,12 @@ class TestUserRoutes:
         
         assert response.status_code == 200
         
-        # Verify user is deactivated (use admin token to check)
+        # Verify user is permanently deleted (hard delete)
         response = client.get(
             f'/api/v1/users/{user_id}',
             headers={'Authorization': f'admin {admin_token}'}
         )
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data['user']['is_active'] == False
+        assert response.status_code == 404  # User no longer exists
     
     def test_list_users(self, client, app):
         """Test listing all users (Admin only)"""
