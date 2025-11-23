@@ -6,7 +6,7 @@ Replaces IoTDB with PostgreSQL for time-series telemetry storage
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
-from sqlalchemy import text, func
+from sqlalchemy import text
 from src.models import db
 
 logger = logging.getLogger(__name__)
@@ -227,7 +227,7 @@ class PostgresTelemetryService:
         # Try to parse as ISO format
         try:
             return datetime.fromisoformat(time_str.replace('Z', '+00:00'))
-        except:
+        except (ValueError, AttributeError):
             # Default to 1 hour ago
             return now - timedelta(hours=1)
     
@@ -339,7 +339,6 @@ class PostgresTelemetryService:
             self.logger.error(f"Error getting latest telemetry: {e}")
             return None
 
-    
     def get_device_aggregated_data(
         self,
         device_id: str,

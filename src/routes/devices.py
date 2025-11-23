@@ -14,7 +14,6 @@ from src.middleware.security import (
     input_sanitization_middleware,
 )
 from datetime import datetime, timezone
-import json
 
 # Create blueprint for device routes
 device_bp = Blueprint("devices", __name__, url_prefix="/api/v1/devices")
@@ -517,66 +516,7 @@ def device_heartbeat():
             ),
             500,
         )
-
-
-@device_bp.route("/config", methods=["GET"])
-@authenticate_device
-@security_headers_middleware()
-@request_metrics_middleware()
-def get_device_config():
-    """Get device configuration"""
-    try:
-        device = request.device
-
-        # Get all active configurations for the device
-        configs = DeviceConfiguration.query.filter_by(device_id=device.id, is_active=True).all()
-
-        config_dict = {}
-        for config in configs:
-            # Convert value based on data type
-            value = config.config_value
-            if config.data_type == "integer":
-                value = int(value) if value else 0
-            elif config.data_type == "float":
-                value = float(value) if value else 0.0
-            elif config.data_type == "boolean":
-                value = value.lower() in ("true", "1", "yes") if value else False
-            elif config.data_type == "json":
-                try:
-                    value = json.loads(value) if value else {}
-                except json.JSONDecodeError:
-                    value = {}
-
-            config_dict[config.config_key] = {
-                "value": value,
-                "data_type": config.data_type,
-                "updated_at": (config.updated_at.isoformat() if config.updated_at else None),
-            }
-
-        return (
-            jsonify(
-                {
-                    "status": "success",
-                    "device_id": device.id,
-                    "configuration": config_dict,
-                }
-            ),
-            200,
-        )
-
-    except Exception as e:
-        current_app.logger.error(f"Error getting device config: {str(e)}")
-        return (
-            jsonify(
-                {
-                    "error": "Failed to get device configuration",
-                    "message": "An error occurred while retrieving device configuration",
-                }
-            ),
-            500,
-        )
-
-
+# REMOVED: GET /api/v1/devices/config - DeviceConfiguration model no longer exists
 # REMOVED: POST /api/v1/devices/config - Use PUT /api/v1/devices/config instead (RESTful standard)
 
 
@@ -706,7 +646,6 @@ def is_device_online(device):
     is_online = time_since_last_seen < 300  # 5 minutes (300 seconds)
 
     return is_online
-
 
 
 @device_bp.route("/<int:device_id>/groups", methods=["GET"])

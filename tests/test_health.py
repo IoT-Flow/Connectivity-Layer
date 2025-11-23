@@ -3,13 +3,13 @@ TDD Test Suite for Health Monitoring
 Following TDD approach - write tests first, then implement/fix functionality
 """
 
-import pytest
 import os
+import pytest
 
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 
 from app import create_app
-from src.models import db, User, Device
+from src.models import db
 
 
 @pytest.fixture

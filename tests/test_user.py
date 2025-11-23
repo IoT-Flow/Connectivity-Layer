@@ -3,8 +3,8 @@ TDD Test Suite for User Model and User Management
 Following TDD approach - write tests first, then implement functionality
 """
 
-import pytest
 import os
+import pytest
 from datetime import datetime, timezone
 
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
@@ -200,7 +200,6 @@ class TestUserPasswordManagement:
 
 class TestUserRoutes:
     """Test user management API routes"""
-    
 
     def test_get_user_by_id(self, client, app):
         """Test getting user by ID (requires matching User ID or admin token)"""
@@ -306,8 +305,6 @@ class TestUserRoutes:
         data = response.get_json()
         assert 'users' in data
         assert len(data['users']) >= 2
-    
-
 
 
 class TestUserAuthentication:

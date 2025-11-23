@@ -3,8 +3,8 @@ Test suite for Device Groups feature
 Following TDD approach - tests written before implementation
 """
 
-import pytest
 import os
+import pytest
 
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 

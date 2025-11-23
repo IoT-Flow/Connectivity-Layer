@@ -132,8 +132,6 @@ class HealthMonitor:
             return {"error": str(e)}
 
 
-
-
 def device_heartbeat_monitor():
     """Monitor device heartbeats and update status"""
 

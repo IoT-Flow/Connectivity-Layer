@@ -2,8 +2,8 @@
 TDD Test Suite for User Devices Endpoint
 """
 
-import pytest
 import os
+import pytest
 
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 

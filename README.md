@@ -6,6 +6,8 @@ A modern, production-ready IoT platform built with Python Flask for comprehensiv
 ![Python](https://img.shields.io/badge/Python-3.10%2B-green)
 ![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-blue)
 ![Flask](https://img.shields.io/badge/Framework-Flask-lightgrey)
+![CI/CD](https://github.com/YOUR_USERNAME/YOUR_REPO/workflows/CI/CD%20Pipeline/badge.svg)
+![Tests](https://img.shields.io/badge/tests-156%20passed-success)
 
 ## 🚀 Features
 

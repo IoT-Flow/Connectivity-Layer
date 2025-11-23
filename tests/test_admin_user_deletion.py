@@ -3,8 +3,8 @@ TDD Test Suite for Admin-Only User Deletion
 Following TDD approach - write tests first, then implement functionality
 """
 
-import pytest
 import os
+import pytest
 
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 

@@ -2,8 +2,8 @@
 Tests for user deactivation/activation endpoints
 """
 
-import pytest
 import os
+import pytest
 
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 os.environ['IOTFLOW_ADMIN_TOKEN'] = 'test_admin_token'
@@ -88,7 +88,7 @@ class TestUserDeactivation:
         with app.app_context():
             user = User.query.filter_by(user_id=test_user['user_id']).first()
             assert user is not None
-            assert user.is_active == False
+            assert user.is_active is False
     
     def test_deactivate_already_deactivated_user(self, app, client, test_user):
         """Test deactivating an already deactivated user"""
@@ -156,7 +156,7 @@ class TestUserActivation:
         with app.app_context():
             user = User.query.filter_by(user_id=test_user['user_id']).first()
             assert user is not None
-            assert user.is_active == True
+            assert user.is_active is True
     
     def test_activate_already_active_user(self, client, test_user):
         """Test activating an already active user"""
@@ -204,7 +204,7 @@ class TestDeactivationVsDeletion:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data['user']['is_active'] == False
+        assert data['user']['is_active'] is False
     
     def test_deleted_user_does_not_exist(self, app, client, test_user):
         """Test that deleted user is removed from database"""

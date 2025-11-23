@@ -3,9 +3,8 @@ TDD Test Suite for Admin Management
 Following TDD approach - write tests first, then implement/fix functionality
 """
 
-import pytest
 import os
-from datetime import datetime, timezone
+import pytest
 
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 os.environ['IOTFLOW_ADMIN_TOKEN'] = 'test_admin_token'
