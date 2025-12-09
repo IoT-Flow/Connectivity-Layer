@@ -2,9 +2,9 @@ name: Connectivity Layer CI
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ master, main, develop ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ master, main, develop ]
 
 jobs:
   test:
@@ -36,33 +36,41 @@ jobs:
           - 6379:6379
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
     - name: Install Poetry
       uses: snok/install-poetry@v1
       with:
-        version: latest
+        version: 1.7.1
         virtualenvs-create: true
         virtualenvs-in-project: true
     
     - name: Load cached venv
       id: cached-poetry-dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: .venv
-        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+        key: venv-${{ runner.os }}-py3.11-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          venv-${{ runner.os }}-py3.11-
     
     - name: Install dependencies
-      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: poetry install --no-interaction --no-root
+      run: |
+        poetry install --no-interaction --no-root
     
     - name: Install project
-      run: poetry install --no-interaction
+      run: |
+        poetry install --no-interaction
+    
+    - name: Verify installation
+      run: |
+        poetry run python --version
+        poetry run pip list | grep -E "(flask|pytest|apache-iotdb|paho-mqtt)"
     
     - name: Format check with Black
       run: |
@@ -79,11 +87,48 @@ jobs:
         REDIS_URL: redis://localhost:6379/0
         FLASK_ENV: testing
       run: |
-        poetry run pytest --cov=src --cov-report=xml --cov-report=term
+        poetry run pytest --cov=src --cov-report=xml --cov-report=term-missing --cov-report=html -v
     
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
+    - name: Generate coverage badge
+      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+      run: |
+        COVERAGE=$(poetry run coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//')
+        echo "Coverage: ${COVERAGE}%"
+        echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
+    
+    - name: Upload coverage reports to Codecov
+      if: github.event_name == 'push'
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: connectivity-layer
         name: connectivity-layer-coverage
+        fail_ci_if_error: false
+    
+    - name: Upload coverage artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: |
+          coverage.xml
+          htmlcov/
+        retention-days: 30
+    
+    - name: Comment coverage on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const coverage = fs.readFileSync('coverage.xml', 'utf8');
+          const match = coverage.match(/line-rate="([0-9.]+)"/);
+          if (match) {
+            const rate = (parseFloat(match[1]) * 100).toFixed(2);
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Test Coverage Report\n\n✅ All tests passed!\n\n📊 Coverage: **${rate}%**\n\nSee detailed report in artifacts.`
+            });
+          }
