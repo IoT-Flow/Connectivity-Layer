@@ -16,7 +16,9 @@ def control_device(device_id):
         return jsonify({"error": "Device not found"}), 404
 
     # Store command in DB for tracking
-    control = DeviceControl(device_id=device_id, command=command, parameters=parameters, status="pending")
+    control = DeviceControl(
+        device_id=device_id, command=command, parameters=parameters, status="pending"
+    )
     db.session.add(control)
     db.session.commit()
     publish_device_command(device_id, command, parameters)

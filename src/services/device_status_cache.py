@@ -312,7 +312,9 @@ class DeviceStatusCache:
                 # Execute all deletes
                 pipeline.execute()
 
-                logger.info(f"Cleared all device caches ({len(status_keys)} status, {len(lastseen_keys)} last seen)")
+                logger.info(
+                    f"Cleared all device caches ({len(status_keys)} status, {len(lastseen_keys)} last seen)"
+                )
                 return True
             else:
                 logger.info("No device caches to clear")

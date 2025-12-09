@@ -137,7 +137,11 @@ class TelemetryMessageHandler(MQTTMessageHandler):
             return False
 
         # Check the first parts match our pattern
-        if topic_parts[0] == "iotflow" and topic_parts[1] == "devices" and topic_parts[3] == "telemetry":
+        if (
+            topic_parts[0] == "iotflow"
+            and topic_parts[1] == "devices"
+            and topic_parts[3] == "telemetry"
+        ):
             return True
 
         return False
@@ -177,7 +181,9 @@ class TelemetryMessageHandler(MQTTMessageHandler):
                 try:
                     payload_data = json.loads(message.payload)
                 except json.JSONDecodeError:
-                    self.logger.error("Invalid JSON payload in telemetry message: %s", message.payload)
+                    self.logger.error(
+                        "Invalid JSON payload in telemetry message: %s", message.payload
+                    )
                     return
             else:
                 payload_data = message.payload
@@ -339,7 +345,11 @@ class StatusMessageHandler(MQTTMessageHandler):
             # Special handling for online/offline status
             if status_type in ["online", "offline", "connectivity"]:
                 # Update device status in Redis cache if app is available
-                if self.app and hasattr(self.app, "device_status_cache") and self.app.device_status_cache:
+                if (
+                    self.app
+                    and hasattr(self.app, "device_status_cache")
+                    and self.app.device_status_cache
+                ):
                     # Try to determine online/offline status
                     device_status = None
 
@@ -350,15 +360,23 @@ class StatusMessageHandler(MQTTMessageHandler):
                     elif status_type in ["online", "offline"]:
                         device_status = status_type
                     # If it's a connectivity message with a connection state
-                    elif status_type == "connectivity" and isinstance(status_data, dict) and "connected" in status_data:
+                    elif (
+                        status_type == "connectivity"
+                        and isinstance(status_data, dict)
+                        and "connected" in status_data
+                    ):
                         device_status = "online" if status_data["connected"] else "offline"
 
                     # Update Redis cache if we have a status
                     if device_status and device_id:
                         try:
                             device_id_int = int(device_id)
-                            self.app.device_status_cache.set_device_status(device_id_int, device_status)
-                            self.logger.info(f"Updated device {device_id} status in cache: {device_status}")
+                            self.app.device_status_cache.set_device_status(
+                                device_id_int, device_status
+                            )
+                            self.logger.info(
+                                f"Updated device {device_id} status in cache: {device_status}"
+                            )
 
                             # Also update last seen for online devices
                             if device_status == "online":
@@ -408,7 +426,9 @@ class MQTTClientService:
         if app:
             self.status_handler.set_app(app)
 
-        self.logger.info(f"Initializing MQTT client with telemetry handler: {self.telemetry_handler}")
+        self.logger.info(
+            f"Initializing MQTT client with telemetry handler: {self.telemetry_handler}"
+        )
         self.logger.info(f"Telemetry handler topic pattern: {self.telemetry_handler.topic_pattern}")
         self.logger.info(f"Auth service: {self.auth_service}")
 
@@ -666,7 +686,9 @@ class MQTTClientService:
         """Callback for disconnection"""
         self.connected = False
         if rc != 0:
-            self.logger.warning(f"Unexpected disconnection from MQTT broker: {mqtt.error_string(rc)}")
+            self.logger.warning(
+                f"Unexpected disconnection from MQTT broker: {mqtt.error_string(rc)}"
+            )
 
             # Attempt reconnection if enabled
             if self.config.auto_reconnect:
@@ -680,12 +702,16 @@ class MQTTClientService:
             # Create MQTT message object
             message = MQTTMessage(
                 topic=msg.topic,
-                payload=(msg.payload.decode("utf-8") if isinstance(msg.payload, bytes) else msg.payload),
+                payload=(
+                    msg.payload.decode("utf-8") if isinstance(msg.payload, bytes) else msg.payload
+                ),
                 qos=msg.qos,
                 retain=msg.retain,
             )
 
-            self.logger.info(f"MQTT message received on topic: {message.topic}, payload: {message.payload}")
+            self.logger.info(
+                f"MQTT message received on topic: {message.topic}, payload: {message.payload}"
+            )
 
             # Route message to appropriate handlers
             eligible_handlers = []
@@ -698,7 +724,9 @@ class MQTTClientService:
             # Log the matching handlers
             if eligible_handlers:
                 handler_names = [h.__class__.__name__ for h in eligible_handlers]
-                self.logger.debug(f"Topic {message.topic} will be processed by: {', '.join(handler_names)}")
+                self.logger.debug(
+                    f"Topic {message.topic} will be processed by: {', '.join(handler_names)}"
+                )
             else:
                 self.logger.warning(f"No handler found for topic: {message.topic}")
 
@@ -768,7 +796,9 @@ class MQTTClientService:
             retries = 0
             while retries < self.config.max_retries and not self.connected:
                 try:
-                    self.logger.info(f"Attempting to reconnect ({retries + 1}/{self.config.max_retries})")
+                    self.logger.info(
+                        f"Attempting to reconnect ({retries + 1}/{self.config.max_retries})"
+                    )
                     if self.connect():
                         break
                 except Exception as e:
@@ -798,7 +828,9 @@ class MQTTClientService:
 
 
 # Factory function to create MQTT client service
-def create_mqtt_service(config: Dict[str, Any], auth_service: MQTTAuthService = None, app=None) -> MQTTClientService:
+def create_mqtt_service(
+    config: Dict[str, Any], auth_service: MQTTAuthService = None, app=None
+) -> MQTTClientService:
     """
     Factory function to create MQTT client service from configuration
 

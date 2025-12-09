@@ -250,7 +250,9 @@ def validate_topic():
 
             # Check specific validation issues
             if not topic.startswith(f"{MQTTTopicManager.BASE_TOPIC}/"):
-                response["validation_errors"].append(f"Topic must start with '{MQTTTopicManager.BASE_TOPIC}/'")
+                response["validation_errors"].append(
+                    f"Topic must start with '{MQTTTopicManager.BASE_TOPIC}/'"
+                )
 
             if len(topic.encode("utf-8")) > 65535:
                 response["validation_errors"].append("Topic too long (max 65535 bytes)")

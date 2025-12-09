@@ -121,8 +121,12 @@ def rate_limit_device(max_requests=60, window=60, per_device=True):
                     response = f(*args, **kwargs)
                     if hasattr(response, "headers"):
                         response.headers["X-RateLimit-Limit"] = str(max_requests)
-                        response.headers["X-RateLimit-Remaining"] = str(max_requests - current_count - 1)
-                        response.headers["X-RateLimit-Reset"] = str(current_time + (window - (current_time % window)))
+                        response.headers["X-RateLimit-Remaining"] = str(
+                            max_requests - current_count - 1
+                        )
+                        response.headers["X-RateLimit-Reset"] = str(
+                            current_time + (window - (current_time % window))
+                        )
 
                     return response
                 else:
@@ -199,14 +203,18 @@ def log_request_middleware():
             start_time = time.time()
 
             # Log request
-            current_app.logger.info(f"Request: {request.method} {request.path} from {request.remote_addr}")
+            current_app.logger.info(
+                f"Request: {request.method} {request.path} from {request.remote_addr}"
+            )
 
             # Execute the request
             response = f(*args, **kwargs)
 
             # Log response time
             execution_time = time.time() - start_time
-            current_app.logger.info(f"Response: {request.method} {request.path} completed in {execution_time:.3f}s")
+            current_app.logger.info(
+                f"Response: {request.method} {request.path} completed in {execution_time:.3f}s"
+            )
 
             return response
 
