@@ -12,6 +12,6 @@ def create_device_control_model(db):
         created_at = db.Column(db.DateTime, default=datetime.utcnow)
         updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-        device = db.relationship("Device", backref="controls")
+        device = db.relationship("Device", backref=db.backref("controls", cascade="all, delete-orphan"))
 
     return DeviceControl

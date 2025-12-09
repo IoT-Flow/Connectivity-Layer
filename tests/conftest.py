@@ -5,7 +5,7 @@ Pytest configuration and shared fixtures for IoTFlow Connectivity Layer tests
 import pytest
 import os
 import tempfile
-from flask import Flask
+from flask import Flask, request, Response
 from datetime import datetime, timezone
 
 # Set test environment before importing app
@@ -49,7 +49,53 @@ def app():
     # Add health endpoint for testing
     @app.route("/health", methods=["GET"])
     def health_check():
-        return {"status": "healthy", "message": "Test app running"}, 200
+        detailed = request.args.get("detailed", "false").lower() == "true"
+        if detailed:
+            return {
+                "status": "healthy",
+                "message": "Test app running",
+                "version": "1.0.0",
+                "database": "connected",
+                "redis": "available",
+            }, 200
+        return {"status": "healthy", "message": "Test app running", "version": "1.0.0"}, 200
+
+    # Add metrics endpoint for testing
+    @app.route("/metrics", methods=["GET"])
+    def metrics():
+        from flask import Response
+
+        # Return simple Prometheus-format metrics
+        metrics_data = """# HELP http_requests_total Total HTTP requests
+# TYPE http_requests_total counter
+http_requests_total 100
+"""
+        return Response(metrics_data, mimetype="text/plain; version=0.0.4")
+
+    # Add root endpoint for testing
+    @app.route("/", methods=["GET"])
+    def root():
+        return {
+            "name": "IoT Device Connectivity Layer",
+            "version": "1.0.0",
+            "description": "REST API for IoT device connectivity",
+            "endpoints": {
+                "health": "/health",
+                "devices": "/api/v1/devices",
+                "admin": "/api/v1/admin",
+                "mqtt": "/api/v1/mqtt",
+            },
+            "documentation": "See README.md",
+        }, 200
+
+    # Add status endpoint for testing
+    @app.route("/status", methods=["GET"])
+    def system_status():
+        return {
+            "status": "healthy",
+            "message": "System operational",
+            "components": {"database": "connected", "redis": "available", "mqtt": "connected"},
+        }, 200
 
     # Add test endpoint for middleware testing
     @app.route("/test", methods=["GET", "POST"])
@@ -303,3 +349,37 @@ def create_test_device(user_id, name="Test Device", device_type="sensor"):
     db.session.add(device)
     db.session.commit()
     return device
+
+
+@pytest.fixture
+def mock_mqtt_client(monkeypatch):
+    """Mock MQTT client for testing"""
+    from unittest.mock import MagicMock
+
+    mock = MagicMock()
+    mock.connect.return_value = True
+    mock.publish.return_value = True
+    mock.subscribe.return_value = True
+    mock.is_connected.return_value = True
+
+    # Mock the mqtt_client module functions
+    monkeypatch.setattr("src.mqtt.mqtt_client.publish_device_command", mock.publish)
+
+    return mock
+
+
+@pytest.fixture
+def mock_mqtt_service(app, monkeypatch):
+    """Mock MQTT service for testing"""
+    from unittest.mock import MagicMock
+
+    mock_service = MagicMock()
+    mock_service.connect.return_value = True
+    mock_service.publish.return_value = True
+    mock_service.subscribe.return_value = True
+    mock_service.is_connected.return_value = True
+    mock_service.client = MagicMock()
+
+    app.mqtt_service = mock_service
+
+    return mock_service
