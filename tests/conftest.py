@@ -269,9 +269,7 @@ def mock_iotdb(monkeypatch):
         def write_telemetry_data(self, device_id, data, **kwargs):
             if device_id not in self.data:
                 self.data[device_id] = []
-            self.data[device_id].append(
-                {"timestamp": datetime.now(timezone.utc), "data": data, **kwargs}
-            )
+            self.data[device_id].append({"timestamp": datetime.now(timezone.utc), "data": data, **kwargs})
             return True
 
         def get_device_telemetry(self, device_id, **kwargs):

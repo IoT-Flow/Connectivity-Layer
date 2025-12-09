@@ -110,9 +110,7 @@ def get_redis_util() -> Optional[DeviceRedisUtil]:
     return _redis_util
 
 
-def sync_device_status_safe(
-    device_id: int, is_online: bool, time_since_last_seen: Optional[float] = None
-):
+def sync_device_status_safe(device_id: int, is_online: bool, time_since_last_seen: Optional[float] = None):
     """
     Safely sync device status to Redis and database without requiring Flask application context
 
@@ -218,9 +216,7 @@ def _sync_to_database_standalone(device_id: int, new_status: str, old_status: st
 
             # Update device status in database
             result = session.execute(
-                text(
-                    "UPDATE devices SET status = :status, updated_at = :updated_at WHERE id = :device_id"
-                ),
+                text("UPDATE devices SET status = :status, updated_at = :updated_at WHERE id = :device_id"),
                 {
                     "status": db_status,
                     "updated_at": current_time,

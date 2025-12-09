@@ -25,9 +25,7 @@ def list_all_devices():
             # Hide API key in admin listing for security
             device_dict.pop("api_key", None)
             # Add basic stats
-            device_dict["auth_records_count"] = DeviceAuth.query.filter_by(
-                device_id=device.id
-            ).count()
+            device_dict["auth_records_count"] = DeviceAuth.query.filter_by(device_id=device.id).count()
             device_dict["config_count"] = DeviceConfiguration.query.filter_by(
                 device_id=device.id, is_active=True
             ).count()
@@ -149,9 +147,7 @@ def update_device_status(device_id):
 
         db.session.commit()
 
-        current_app.logger.info(
-            f"Device {device.name} status changed from {old_status} to {new_status}"
-        )
+        current_app.logger.info(f"Device {device.name} status changed from {old_status} to {new_status}")
 
         return (
             jsonify(
@@ -193,9 +189,7 @@ def get_system_stats():
 
         # Online/offline statistics (devices seen in last 5 minutes)
         five_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
-        online_devices = Device.query.filter(
-            Device.last_seen >= five_minutes_ago, Device.status == "active"
-        ).count()
+        online_devices = Device.query.filter(Device.last_seen >= five_minutes_ago, Device.status == "active").count()
 
         # Auth statistics
         total_auth_records = DeviceAuth.query.count()

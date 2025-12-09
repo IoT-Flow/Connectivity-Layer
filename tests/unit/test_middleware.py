@@ -94,9 +94,7 @@ class TestSecurityMiddleware:
             "user_id": test_user.user_id,
         }
 
-        response = client.post(
-            "/api/v1/devices/register", data=json.dumps(payload), content_type="application/json"
-        )
+        response = client.post("/api/v1/devices/register", data=json.dumps(payload), content_type="application/json")
 
         # Should handle potentially malicious input
         assert response.status_code in [201, 400]
@@ -150,17 +148,13 @@ class TestValidationMiddleware:
         # Missing 'device_type'
         payload = {"name": "Test Device", "user_id": test_user.user_id}
 
-        response = client.post(
-            "/api/v1/devices/register", data=json.dumps(payload), content_type="application/json"
-        )
+        response = client.post("/api/v1/devices/register", data=json.dumps(payload), content_type="application/json")
 
         assert response.status_code == 400
 
     def test_json_payload_validation_invalid_json(self, client):
         """Test validation handles invalid JSON"""
-        response = client.post(
-            "/api/v1/devices/register", data='{"invalid": json}', content_type="application/json"
-        )
+        response = client.post("/api/v1/devices/register", data='{"invalid": json}', content_type="application/json")
 
         # Flask catches invalid JSON and returns 400 or 500
         assert response.status_code in [400, 500]

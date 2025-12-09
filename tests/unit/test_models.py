@@ -15,9 +15,7 @@ class TestUserModel:
     def test_user_creation(self, app):
         """Test user instance creation with required fields"""
         with app.app_context():
-            user = User(
-                username="newuser", email="newuser@example.com", password_hash="hashed_password"
-            )
+            user = User(username="newuser", email="newuser@example.com", password_hash="hashed_password")
             db.session.add(user)
             db.session.commit()
 
@@ -44,15 +42,11 @@ class TestUserModel:
     def test_user_email_must_be_unique(self, app):
         """Test that email must be unique"""
         with app.app_context():
-            user1 = User(
-                username="unique_user1", email="duplicate@example.com", password_hash="hash1"
-            )
+            user1 = User(username="unique_user1", email="duplicate@example.com", password_hash="hash1")
             db.session.add(user1)
             db.session.commit()
 
-            user2 = User(
-                username="unique_user2", email="duplicate@example.com", password_hash="hash2"
-            )
+            user2 = User(username="unique_user2", email="duplicate@example.com", password_hash="hash2")
             db.session.add(user2)
 
             with pytest.raises(Exception):  # Should raise IntegrityError

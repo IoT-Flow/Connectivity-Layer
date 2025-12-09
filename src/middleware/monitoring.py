@@ -43,11 +43,7 @@ class HealthMonitor:
             health_data["metrics"]["devices"] = HealthMonitor._get_device_metrics()
 
             # Determine overall status
-            failed_checks = [
-                name
-                for name, check in health_data["checks"].items()
-                if not check.get("healthy", False)
-            ]
+            failed_checks = [name for name, check in health_data["checks"].items() if not check.get("healthy", False)]
 
             if failed_checks:
                 health_data["status"] = "degraded" if len(failed_checks) == 1 else "unhealthy"
@@ -122,9 +118,7 @@ class HealthMonitor:
                 try:
                     query_start = time.time()
                     # Simple test query - check if we can execute basic operations
-                    session_data_set = iotdb_config.session.execute_query_statement(
-                        "SHOW DATABASES"
-                    )
+                    session_data_set = iotdb_config.session.execute_query_statement("SHOW DATABASES")
                     query_time = (time.time() - query_start) * 1000
                     session_data_set.close_operation_handle()
 
@@ -164,9 +158,7 @@ class HealthMonitor:
                 "memory_percent": psutil.virtual_memory().percent,
                 "memory_available_mb": round(psutil.virtual_memory().available / 1024 / 1024, 2),
                 "disk_usage_percent": psutil.disk_usage("/").percent,
-                "load_average": (
-                    list(psutil.getloadavg()) if hasattr(psutil, "getloadavg") else None
-                ),
+                "load_average": (list(psutil.getloadavg()) if hasattr(psutil, "getloadavg") else None),
             }
         except Exception as e:
             current_app.logger.error(f"System metrics error: {str(e)}")
@@ -266,9 +258,7 @@ def device_heartbeat_monitor():
                 # Update device heartbeat in Redis
                 if hasattr(current_app, "redis_client"):
                     try:
-                        current_app.redis_client.setex(
-                            f"heartbeat:{device.id}", 300, "online"
-                        )  # 5 minutes TTL
+                        current_app.redis_client.setex(f"heartbeat:{device.id}", 300, "online")  # 5 minutes TTL
                     except Exception as e:
                         current_app.logger.error(f"Redis heartbeat error: {str(e)}")
 

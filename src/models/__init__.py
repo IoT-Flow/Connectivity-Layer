@@ -80,9 +80,7 @@ class Device(db.Model):
     description = db.Column(db.Text)
     device_type = db.Column(db.String(50), nullable=False, default="sensor")
     api_key = db.Column(db.String(64), unique=True, nullable=False, default=generate_api_key)
-    status = db.Column(
-        db.String(20), nullable=False, default="active"
-    )  # active, inactive, maintenance
+    status = db.Column(db.String(20), nullable=False, default="active")  # active, inactive, maintenance
     location = db.Column(db.String(200))
     firmware_version = db.Column(db.String(20))
     hardware_version = db.Column(db.String(20))
@@ -98,9 +96,7 @@ class Device(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     # Relationships
-    auth_records = db.relationship(
-        "DeviceAuth", backref="device", lazy="dynamic", cascade="all, delete-orphan"
-    )
+    auth_records = db.relationship("DeviceAuth", backref="device", lazy="dynamic", cascade="all, delete-orphan")
     configurations = db.relationship(
         "DeviceConfiguration",
         backref="device",
@@ -269,9 +265,7 @@ class Chart(db.Model):
     is_active = db.Column(db.Boolean, default=True)
 
     # Relationships
-    devices = db.relationship(
-        "ChartDevice", backref="chart", lazy="dynamic", cascade="all, delete-orphan"
-    )
+    devices = db.relationship("ChartDevice", backref="chart", lazy="dynamic", cascade="all, delete-orphan")
     measurements = db.relationship(
         "ChartMeasurement",
         backref="chart",
@@ -292,12 +286,8 @@ class ChartDevice(db.Model):
     __tablename__ = "chart_devices"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    chart_id = db.Column(
-        db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False
-    )
-    device_id = db.Column(
-        db.Integer, db.ForeignKey("devices.id", ondelete="CASCADE"), nullable=False
-    )
+    chart_id = db.Column(db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False)
+    device_id = db.Column(db.Integer, db.ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
@@ -313,9 +303,7 @@ class ChartMeasurement(db.Model):
     __tablename__ = "chart_measurements"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    chart_id = db.Column(
-        db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False
-    )
+    chart_id = db.Column(db.String(255), db.ForeignKey("charts.id", ondelete="CASCADE"), nullable=False)
     measurement_name = db.Column(db.String(255), nullable=False)
     display_name = db.Column(db.String(255))
     color = db.Column(db.String(7))

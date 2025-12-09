@@ -27,9 +27,7 @@ iotdb_service = IoTDBService()
 @device_bp.route("/register", methods=["POST"])
 @security_headers_middleware()
 @request_metrics_middleware()
-@rate_limit_device(
-    max_requests=10, window=300, per_device=False
-)  # 10 registrations per 5 minutes per IP
+@rate_limit_device(max_requests=10, window=300, per_device=False)  # 10 registrations per 5 minutes per IP
 @validate_json_payload(["name", "device_type", "user_id"])
 @input_sanitization_middleware()
 def register_device():
@@ -79,9 +77,7 @@ def register_device():
         db.session.add(device)
         db.session.commit()
 
-        current_app.logger.info(
-            f"New device registered: {device.name} (ID: {device.id}) by user: {user.username}"
-        )
+        current_app.logger.info(f"New device registered: {device.name} (ID: {device.id}) by user: {user.username}")
 
         response_data = device.to_dict()
         response_data["api_key"] = device.api_key  # Include API key in registration response
@@ -236,9 +232,7 @@ def submit_telemetry():
         # Update device last_seen
         device.update_last_seen()
 
-        current_app.logger.info(
-            f"Telemetry received from device {device.name} (ID: {device.id}) - " f"IoTDB: ✓"
-        )
+        current_app.logger.info(f"Telemetry received from device {device.name} (ID: {device.id}) - " f"IoTDB: ✓")
 
         return (
             jsonify(
@@ -290,9 +284,7 @@ def get_telemetry():
             # Filter by data type if specified (this would need to be implemented in IoTDB service)
             if data_type and telemetry_data:
                 # Simple filtering - in practice this should be done in the IoTDB query
-                telemetry_data = [
-                    record for record in telemetry_data if record.get("data_type") == data_type
-                ]
+                telemetry_data = [record for record in telemetry_data if record.get("data_type") == data_type]
 
         except Exception as e:
             current_app.logger.error(f"Error querying IoTDB: {str(e)}")
@@ -607,9 +599,7 @@ def update_device_config():
         data_type = data.get("data_type", "string")
 
         # Check if configuration already exists
-        existing_config = DeviceConfiguration.query.filter_by(
-            device_id=device.id, config_key=config_key
-        ).first()
+        existing_config = DeviceConfiguration.query.filter_by(device_id=device.id, config_key=config_key).first()
 
         if existing_config:
             # Update existing configuration
@@ -777,9 +767,7 @@ def get_device_status_by_id(device_id):
                     response["last_seen"] = last_seen.isoformat()
                     response["last_seen_source"] = "redis_cache"
                 else:
-                    response["last_seen"] = (
-                        device.last_seen.isoformat() if device.last_seen else None
-                    )
+                    response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
                     response["last_seen_source"] = "database"
             else:
                 # Redis not available
@@ -855,9 +843,7 @@ def sync_device_status_to_redis(device, is_online, time_since_last_seen=None):
                 # Use the Flask app's Redis cache
                 redis_status = current_app.device_status_cache.get_device_status(device.id)
 
-                if (is_online and redis_status != "online") or (
-                    not is_online and redis_status != "offline"
-                ):
+                if (is_online and redis_status != "online") or (not is_online and redis_status != "offline"):
                     new_status = "online" if is_online else "offline"
                     current_app.device_status_cache.set_device_status(device.id, new_status)
 
@@ -867,9 +853,7 @@ def sync_device_status_to_redis(device, is_online, time_since_last_seen=None):
                             f"(last seen {time_since_last_seen:.1f}s ago)"
                         )
                     else:
-                        current_app.logger.info(
-                            f"Updated device {device.id} status in Redis: {new_status}"
-                        )
+                        current_app.logger.info(f"Updated device {device.id} status in Redis: {new_status}")
                 return
 
         except RuntimeError:

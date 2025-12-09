@@ -26,9 +26,7 @@ class TestDeviceRegistration:
             "user_id": test_user.user_id,
         }
 
-        response = client.post(
-            "/api/v1/devices/register", data=json.dumps(payload), content_type="application/json"
-        )
+        response = client.post("/api/v1/devices/register", data=json.dumps(payload), content_type="application/json")
 
         assert response.status_code == 201
         data = response.get_json()
@@ -49,9 +47,7 @@ class TestDeviceRegistration:
             "user_id": test_user.user_id,
         }
 
-        response = client.post(
-            "/api/v1/devices/register", data=json.dumps(payload), content_type="application/json"
-        )
+        response = client.post("/api/v1/devices/register", data=json.dumps(payload), content_type="application/json")
 
         assert response.status_code == 409
         data = response.get_json()
@@ -66,9 +62,7 @@ class TestDeviceRegistration:
             "user_id": "non_existent_user_id_12345",
         }
 
-        response = client.post(
-            "/api/v1/devices/register", data=json.dumps(payload), content_type="application/json"
-        )
+        response = client.post("/api/v1/devices/register", data=json.dumps(payload), content_type="application/json")
 
         assert response.status_code == 401
         data = response.get_json()
@@ -80,18 +74,14 @@ class TestDeviceRegistration:
         # Missing name
         payload = {"device_type": "sensor", "user_id": test_user.user_id}
 
-        response = client.post(
-            "/api/v1/devices/register", data=json.dumps(payload), content_type="application/json"
-        )
+        response = client.post("/api/v1/devices/register", data=json.dumps(payload), content_type="application/json")
 
         assert response.status_code == 400
 
         # Missing device_type
         payload = {"name": "Test Device", "user_id": test_user.user_id}
 
-        response = client.post(
-            "/api/v1/devices/register", data=json.dumps(payload), content_type="application/json"
-        )
+        response = client.post("/api/v1/devices/register", data=json.dumps(payload), content_type="application/json")
 
         assert response.status_code == 400
 
@@ -260,9 +250,7 @@ class TestDeviceTelemetry:
             "metadata": {"sensor_type": "BME280", "location": "test_lab"},
         }
 
-        response = client.post(
-            "/api/v1/devices/telemetry", data=json.dumps(payload), headers=headers
-        )
+        response = client.post("/api/v1/devices/telemetry", data=json.dumps(payload), headers=headers)
 
         # Should succeed even if IoTDB is not available (graceful degradation)
         assert response.status_code in [200, 201, 500]
@@ -276,9 +264,7 @@ class TestDeviceTelemetry:
         """Test that telemetry submission requires API key"""
         payload = {"data": {"temperature": 25.5}}
 
-        response = client.post(
-            "/api/v1/devices/telemetry", data=json.dumps(payload), content_type="application/json"
-        )
+        response = client.post("/api/v1/devices/telemetry", data=json.dumps(payload), content_type="application/json")
 
         assert response.status_code == 401
 
@@ -289,9 +275,7 @@ class TestDeviceTelemetry:
         # Missing 'data' field
         payload = {"metadata": {"test": "value"}}
 
-        response = client.post(
-            "/api/v1/devices/telemetry", data=json.dumps(payload), headers=headers
-        )
+        response = client.post("/api/v1/devices/telemetry", data=json.dumps(payload), headers=headers)
 
         assert response.status_code == 400
 
