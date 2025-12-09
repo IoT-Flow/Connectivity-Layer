@@ -11,8 +11,15 @@ from datetime import datetime, timedelta
 class TestTelemetryStorage:
     """Test storing telemetry data"""
 
-    def test_store_telemetry_success(self, client, test_device):
+    def test_store_telemetry_success(self, client, test_device, app):
         """Test successfully storing telemetry data"""
+        with app.app_context():
+            # Ensure device is in active state
+            device = Device.query.get(test_device.id)
+            if device:
+                device.status = "active"
+                db.session.commit()
+
         headers = {"X-API-Key": test_device.api_key}
         payload = {
             "data": {"temperature": 25.5, "humidity": 60.0, "pressure": 1013.25},
@@ -21,7 +28,14 @@ class TestTelemetryStorage:
 
         response = client.post("/api/v1/telemetry", json=payload, headers=headers)
 
-        assert response.status_code in [200, 201]
+        # If 500 error, print response for debugging
+        if response.status_code == 500:
+            print(f"Error response: {response.get_json()}")
+
+        assert response.status_code in [
+            200,
+            201,
+        ], f"Expected 200/201, got {response.status_code}: {response.get_json()}"
         data = response.get_json()
         assert "stored" in data or "success" in data or "message" in data
 
@@ -42,14 +56,26 @@ class TestTelemetryStorage:
 
         assert response.status_code == 400
 
-    def test_store_telemetry_batch(self, client, test_device):
+    def test_store_telemetry_batch(self, client, test_device, app):
         """Test storing multiple telemetry readings"""
+        with app.app_context():
+            # Ensure device is in active state
+            device = Device.query.get(test_device.id)
+            if device:
+                device.status = "active"
+                db.session.commit()
+
         headers = {"X-API-Key": test_device.api_key}
 
         for i in range(5):
             payload = {"data": {"temperature": 20.0 + i, "humidity": 50.0 + i}}
             response = client.post("/api/v1/telemetry", json=payload, headers=headers)
-            assert response.status_code in [200, 201]
+
+            # If 500 error, print response for debugging
+            if response.status_code == 500:
+                print(f"Batch {i} error response: {response.get_json()}")
+
+            assert response.status_code in [200, 201], f"Batch {i}: Expected 200/201, got {response.status_code}"
 
 
 class TestTelemetryRetrieval:
