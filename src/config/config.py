@@ -9,7 +9,14 @@ class Config:
     """Base configuration class"""
 
     SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-secret-key"
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or "sqlite:///iotflow.db"
+    # Database configuration - defaults to PostgreSQL, falls back to SQLite
+    _base_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    _instance_dir = os.path.join(_base_dir, "instance")
+    # Ensure instance directory exists (for SQLite fallback)
+    os.makedirs(_instance_dir, exist_ok=True)
+
+    # Use PostgreSQL by default, SQLite as fallback
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", f"sqlite:///{os.path.join(_instance_dir, 'iotflow.db')}")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Redis Configuration
@@ -103,7 +110,8 @@ class TestingConfig(Config):
     """Testing configuration"""
 
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    # Use in-memory SQLite for tests (faster and isolated)
+    SQLALCHEMY_DATABASE_URI = os.environ.get("TEST_DATABASE_URL") or "sqlite:///:memory:"
 
 
 # Configuration dictionary

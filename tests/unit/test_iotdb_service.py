@@ -88,9 +88,7 @@ class TestIoTDBServiceRequirements:
         with patch.object(service, "is_available", return_value=True):
             before_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
-            result = service.write_telemetry_data(
-                device_id="123", data={"temperature": 25.5}, user_id="user1"
-            )
+            result = service.write_telemetry_data(device_id="123", data={"temperature": 25.5}, user_id="user1")
 
             after_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
@@ -117,9 +115,7 @@ class TestIoTDBServiceRequirements:
                 # REQUIREMENT: User 1's data stored in user1 path
                 mock_config.get_device_path.return_value = "root.user1.device123"
 
-                service.write_telemetry_data(
-                    device_id="123", data={"temp": 25}, user_id="user1"
-                )
+                service.write_telemetry_data(device_id="123", data={"temp": 25}, user_id="user1")
 
                 # Verify user_id was used in path
                 mock_config.get_device_path.assert_called_with("123", "user1")
@@ -127,9 +123,7 @@ class TestIoTDBServiceRequirements:
                 # REQUIREMENT: User 2's data stored in separate path
                 mock_config.get_device_path.return_value = "root.user2.device123"
 
-                service.write_telemetry_data(
-                    device_id="123", data={"temp": 30}, user_id="user2"
-                )
+                service.write_telemetry_data(device_id="123", data={"temp": 30}, user_id="user2")
 
                 mock_config.get_device_path.assert_called_with("123", "user2")
 
@@ -183,9 +177,7 @@ class TestIoTDBServiceRequirements:
         assert '{"mode": "auto"' in values[0], "Dict must be JSON serialized"
 
         # REQUIREMENT: List values serialized to JSON
-        measurements, data_types, values = service._prepare_time_series(
-            "root.device123", {"readings": [1, 2, 3, 4, 5]}
-        )
+        measurements, data_types, values = service._prepare_time_series("root.device123", {"readings": [1, 2, 3, 4, 5]})
 
         assert len(measurements) == 1
         assert data_types[0] == TSDataType.TEXT
@@ -205,9 +197,7 @@ class TestIoTDBServiceErrorHandling:
 
         with patch.object(service, "is_available", return_value=False):
             # REQUIREMENT: Write fails gracefully when unavailable
-            result = service.write_telemetry_data(
-                device_id="123", data={"temp": 25}, user_id="user1"
-            )
+            result = service.write_telemetry_data(device_id="123", data={"temp": 25}, user_id="user1")
 
             assert result is False, "Must return False when unavailable"
 
@@ -228,9 +218,7 @@ class TestIoTDBServiceErrorHandling:
 
         with patch.object(service, "is_available", return_value=True):
             # EDGE CASE: Empty data dict
-            result = service.write_telemetry_data(
-                device_id="123", data={}, user_id="user1"
-            )
+            result = service.write_telemetry_data(device_id="123", data={}, user_id="user1")
 
             # Should still succeed (metadata will be stored)
             assert result is True
@@ -265,9 +253,7 @@ class TestIoTDBServiceErrorHandling:
         service.session.insert_str_record.side_effect = Exception("Connection lost")
 
         with patch.object(service, "is_available", return_value=True):
-            result = service.write_telemetry_data(
-                device_id="123", data={"temp": 25}, user_id="user1"
-            )
+            result = service.write_telemetry_data(device_id="123", data={"temp": 25}, user_id="user1")
 
             assert result is False, "Must return False on connection error"
 
@@ -279,16 +265,12 @@ class TestIoTDBServiceErrorHandling:
         """
         service = IoTDBService()
         service.session = Mock()
-        service.session.create_time_series.side_effect = Exception(
-            "Time series already exists"
-        )
+        service.session.create_time_series.side_effect = Exception("Time series already exists")
         service.session.insert_str_record = Mock()
 
         with patch.object(service, "is_available", return_value=True):
             # REQUIREMENT: Should succeed even if time series exists
-            result = service.write_telemetry_data(
-                device_id="123", data={"temp": 25}, user_id="user1"
-            )
+            result = service.write_telemetry_data(device_id="123", data={"temp": 25}, user_id="user1")
 
             assert result is True, "Must succeed even if time series exists"
             service.session.insert_str_record.assert_called_once()
@@ -312,9 +294,7 @@ class TestIoTDBServiceDataIntegrity:
             # Test with microsecond precision
             timestamp = datetime(2024, 1, 15, 10, 30, 45, 123456, tzinfo=timezone.utc)
 
-            service.write_telemetry_data(
-                device_id="123", data={"temp": 25}, timestamp=timestamp, user_id="user1"
-            )
+            service.write_telemetry_data(device_id="123", data={"temp": 25}, timestamp=timestamp, user_id="user1")
 
             call_args = service.session.insert_str_record.call_args
             timestamp_ms = call_args[0][1]
@@ -350,23 +330,17 @@ class TestIoTDBServiceDataIntegrity:
         service = IoTDBService()
 
         # Test integer consistency
-        measurements, data_types, values = service._prepare_time_series(
-            "root.device123", {"count": 42}
-        )
+        measurements, data_types, values = service._prepare_time_series("root.device123", {"count": 42})
         assert data_types[0] == TSDataType.INT64
         assert isinstance(values[0], int)
 
         # Test float consistency
-        measurements, data_types, values = service._prepare_time_series(
-            "root.device123", {"temperature": 25.5}
-        )
+        measurements, data_types, values = service._prepare_time_series("root.device123", {"temperature": 25.5})
         assert data_types[0] == TSDataType.DOUBLE
         assert isinstance(values[0], float)
 
         # Test boolean consistency
-        measurements, data_types, values = service._prepare_time_series(
-            "root.device123", {"active": True}
-        )
+        measurements, data_types, values = service._prepare_time_series("root.device123", {"active": True})
         assert data_types[0] == TSDataType.BOOLEAN
         assert isinstance(values[0], bool)
 
@@ -384,9 +358,7 @@ class TestIoTDBServicePerformance:
         # Test with many measurements
         data = {f"sensor_{i}": i * 10.5 for i in range(100)}
 
-        measurements, data_types, values = service._prepare_time_series(
-            "root.device123", data
-        )
+        measurements, data_types, values = service._prepare_time_series("root.device123", data)
 
         # REQUIREMENT: All measurements prepared
         assert len(measurements) == 100
@@ -407,16 +379,13 @@ class TestIoTDBServicePerformance:
         data = {"temp": 25}
         metadata = {"device_type": "sensor", "location": "room1"}
 
-        measurements, data_types, values = service._prepare_time_series(
-            "root.device123", data, metadata
-        )
+        measurements, data_types, values = service._prepare_time_series("root.device123", data, metadata)
 
         # Should have: temp + 2 metadata fields
         assert len(measurements) == 3
         assert any("temp" in m for m in measurements)
         assert any("meta_device_type" in m for m in measurements)
         assert any("meta_location" in m for m in measurements)
-
 
 
 class TestIoTDBServiceQueryOperations:
@@ -439,15 +408,11 @@ class TestIoTDBServiceQueryOperations:
                 mock_config.get_device_path.return_value = "root.device123"
 
                 # Test with relative hours
-                results = service.get_device_telemetry(
-                    device_id="123", start_time="-2h", user_id="user1"
-                )
+                results = service.get_device_telemetry(device_id="123", start_time="-2h", user_id="user1")
                 assert isinstance(results, list)
 
                 # Test with relative days
-                results = service.get_device_telemetry(
-                    device_id="123", start_time="-7d", user_id="user1"
-                )
+                results = service.get_device_telemetry(device_id="123", start_time="-7d", user_id="user1")
                 assert isinstance(results, list)
 
     def test_get_device_telemetry_with_absolute_time(self):

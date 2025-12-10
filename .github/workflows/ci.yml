@@ -9,31 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: iotflow
-          POSTGRES_PASSWORD: iotflowpass
-          POSTGRES_DB: iotflow_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
 
     steps:
     - uses: actions/checkout@v4
@@ -83,9 +58,8 @@ jobs:
     
     - name: Run tests with coverage
       env:
-        DATABASE_URL: postgresql://iotflow:iotflowpass@localhost:5432/iotflow_test
-        REDIS_URL: redis://localhost:6379/0
         FLASK_ENV: testing
+        # Tests use in-memory SQLite and mock Redis - no external services needed
       run: |
         poetry run pytest --cov=src --cov-report=xml --cov-report=term-missing --cov-report=html -v
     

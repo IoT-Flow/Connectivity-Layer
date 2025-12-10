@@ -316,6 +316,88 @@ class ChartMeasurement(db.Model):
     )
 
 
+class Group(db.Model):
+    """Group model for organizing devices into groups"""
+
+    __tablename__ = "groups"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    color = db.Column(db.String(7), default="#3B82F6")  # Hex color code #RRGGBB
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relationships
+    user = db.relationship("User", backref="groups")
+    devices = db.relationship(
+        "Device",
+        secondary="device_groups",
+        backref=db.backref("groups", lazy="dynamic"),
+    )
+
+    # Indexes
+    __table_args__ = (
+        db.Index("idx_groups_user_id", "user_id"),
+        db.Index("idx_groups_name", "name"),
+    )
+
+    def __repr__(self):
+        return f"<Group {self.name}>"
+
+    def to_dict(self, include_device_count=False):
+        """Convert group to dictionary"""
+        result = {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "color": self.color,
+            "user_id": self.user_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+        if include_device_count:
+            result["device_count"] = DeviceGroupAssociation.query.filter_by(group_id=self.id).count()
+
+        return result
+
+
+class DeviceGroupAssociation(db.Model):
+    """Association table for many-to-many relationship between devices and groups"""
+
+    __tablename__ = "device_groups"
+
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    # Unique constraint to prevent duplicate associations
+    __table_args__ = (
+        db.UniqueConstraint("device_id", "group_id", name="uq_device_group"),
+        db.Index("idx_device_groups_device", "device_id"),
+        db.Index("idx_device_groups_group", "group_id"),
+    )
+
+    def __repr__(self):
+        return f"<DeviceGroupAssociation device_id={self.device_id} group_id={self.group_id}>"
+
+    def to_dict(self):
+        """Convert association to dictionary"""
+        return {
+            "id": self.id,
+            "device_id": self.device_id,
+            "group_id": self.group_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 # Create the DeviceControl model after all other models are defined
 from src.models.device_control import create_device_control_model  # noqa: E402
 

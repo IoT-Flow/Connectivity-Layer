@@ -13,7 +13,19 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from app import create_app
-from src.models import db, User, Device, DeviceAuth, DeviceConfiguration, Chart, ChartDevice, ChartMeasurement, DeviceControl
+from src.models import (
+    db,
+    User,
+    Device,
+    DeviceAuth,
+    DeviceConfiguration,
+    Chart,
+    ChartDevice,
+    ChartMeasurement,
+    DeviceControl,
+    Group,
+    DeviceGroupAssociation,
+)
 from werkzeug.security import generate_password_hash
 from sqlalchemy import text, inspect
 
@@ -24,7 +36,18 @@ def init_database():
         try:
             inspector = inspect(db.engine)
             existing_tables = inspector.get_table_names()
-            all_models = [User, Device, DeviceAuth, DeviceConfiguration, Chart, ChartDevice, ChartMeasurement, DeviceControl]
+            all_models = [
+                User,
+                Device,
+                DeviceAuth,
+                DeviceConfiguration,
+                Chart,
+                ChartDevice,
+                ChartMeasurement,
+                DeviceControl,
+                Group,
+                DeviceGroupAssociation,
+            ]
             missing_tables = []
             for model in all_models:
                 if model.__tablename__ not in existing_tables:
@@ -68,6 +91,47 @@ def init_database():
                 db.session.flush()
 
             print(f"  - Admin user: {admin_user.username}")
+
+            # Create sample groups for testing only if not exist
+            sample_groups = [
+                {
+                    "name": "Living Room",
+                    "description": "Devices in the living room",
+                    "color": "#FF5733",
+                    "user_id": admin_user.id,
+                },
+                {
+                    "name": "Bedroom",
+                    "description": "Devices in the bedroom",
+                    "color": "#3B82F6",
+                    "user_id": admin_user.id,
+                },
+                {
+                    "name": "Kitchen",
+                    "description": "Kitchen appliances and sensors",
+                    "color": "#10B981",
+                    "user_id": admin_user.id,
+                },
+                {
+                    "name": "Outdoor",
+                    "description": "Outdoor devices and sensors",
+                    "color": "#F59E0B",
+                    "user_id": admin_user.id,
+                },
+            ]
+
+            created_groups = []
+            for group_data in sample_groups:
+                existing_group = Group.query.filter_by(name=group_data["name"], user_id=admin_user.id).first()
+                if not existing_group:
+                    group = Group(**group_data)
+                    db.session.add(group)
+                    db.session.flush()
+                    created_groups.append(group)
+                    print(f"  - Created group: {group.name}")
+                else:
+                    created_groups.append(existing_group)
+                    print(f"  - Group already exists: {existing_group.name}")
 
             # Create sample devices for testing only if not exist
             # sample_devices = [

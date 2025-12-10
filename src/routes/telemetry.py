@@ -119,6 +119,7 @@ def get_device_telemetry(device_id):
     try:
         telemetry_data = iotdb_service.get_device_telemetry(
             device_id=str(device_id),
+            user_id=str(device.user_id),  # FIX: Pass user_id for correct path
             start_time=request.args.get("start_time", "-1h"),
             limit=min(int(request.args.get("limit", 1000)), 10000),
         )
@@ -148,7 +149,10 @@ def get_device_latest_telemetry(device_id):
     if err:
         return err, code
     try:
-        latest_data = iotdb_service.get_device_latest_telemetry(str(device_id))
+        latest_data = iotdb_service.get_device_latest_telemetry(
+            device_id=str(device_id),
+            user_id=str(device.user_id)  # FIX: Pass user_id for correct path
+        )
         if latest_data:
             return (
                 jsonify(
@@ -212,6 +216,7 @@ def get_device_aggregated_telemetry(device_id):
             )
         aggregated_data = iotdb_service.get_device_aggregated_data(
             device_id=str(device_id),
+            user_id=str(device.user_id),  # FIX: Pass user_id for correct path
             field=field,
             aggregation=aggregation,
             window=window,
@@ -256,7 +261,12 @@ def delete_device_telemetry(device_id):
         stop_time = data.get("stop_time")
         if not start_time or not stop_time:
             return jsonify({"error": "start_time and stop_time are required"}), 400
-        success = iotdb_service.delete_device_data(device_id=str(device_id), start_time=start_time, stop_time=stop_time)
+        success = iotdb_service.delete_device_data(
+            device_id=str(device_id),
+            user_id=str(device.user_id),  # FIX: Pass user_id for correct path
+            start_time=start_time,
+            stop_time=stop_time
+        )
         if success:
             current_app.logger.info(f"Telemetry data deleted for device {device.name} (ID: {device_id})")
             return (

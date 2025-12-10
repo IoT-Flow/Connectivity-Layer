@@ -271,12 +271,14 @@ class TestMQTTAuthService:
         with patch("src.services.mqtt_auth.Device") as MockDevice:
             MockDevice.query.filter_by.return_value.first.return_value = mock_device
 
-            payload = json.dumps({
-                "api_key": "test_key",
-                "data": {"temperature": 25.5, "humidity": 60},
-                "metadata": {"location": "room1"},
-                "timestamp": "2024-01-15T10:30:00Z"
-            })
+            payload = json.dumps(
+                {
+                    "api_key": "test_key",
+                    "data": {"temperature": 25.5, "humidity": 60},
+                    "metadata": {"location": "room1"},
+                    "timestamp": "2024-01-15T10:30:00Z",
+                }
+            )
 
             result = service.handle_telemetry_message(123, "test_key", "iotflow/devices/123/telemetry", payload)
 
@@ -306,12 +308,9 @@ class TestMQTTAuthService:
         with patch("src.services.mqtt_auth.Device") as MockDevice:
             MockDevice.query.filter_by.return_value.first.return_value = mock_device
 
-            payload = json.dumps({
-                "api_key": "test_key",
-                "temperature": 25.5,
-                "humidity": 60,
-                "ts": "2024-01-15T10:30:00Z"
-            })
+            payload = json.dumps(
+                {"api_key": "test_key", "temperature": 25.5, "humidity": 60, "ts": "2024-01-15T10:30:00Z"}
+            )
 
             result = service.handle_telemetry_message(123, "test_key", "iotflow/devices/123/telemetry", payload)
 
@@ -392,10 +391,7 @@ class TestMQTTAuthService:
         with patch("src.services.mqtt_auth.Device") as MockDevice:
             MockDevice.query.filter_by.return_value.first.return_value = mock_device
 
-            payload = json.dumps({
-                "api_key": "test_key",
-                "temperature": 25.5
-            })
+            payload = json.dumps({"api_key": "test_key", "temperature": 25.5})
 
             result = service.handle_telemetry_message(123, "test_key", "iotflow/devices/123/telemetry", payload)
 
@@ -443,6 +439,7 @@ class TestMQTTAuthService:
         service.authenticated_devices[2] = Mock()  # Will be removed
 
         with patch("src.services.mqtt_auth.Device") as MockDevice:
+
             def query_side_effect(id, status):
                 if id == 1:
                     return Mock(first=lambda: mock_active_device)
