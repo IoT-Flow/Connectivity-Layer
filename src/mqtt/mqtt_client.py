@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 def connect_mqtt():
     """Connect to MQTT broker with retry logic for containerized environments"""
     # Skip connection in testing mode
-    if os.getenv('TESTING', 'false').lower() == 'true':
+    if os.getenv("TESTING", "false").lower() == "true":
         logger.info("Skipping MQTT connection in testing mode")
         return
-        
+
     max_retries = 10
     retry_delay = 2
 

@@ -9,7 +9,7 @@ class IoTDBConfig:
     def __init__(self):
         # Check if IoTDB is enabled (default: True, can be disabled for testing)
         self.enabled = os.getenv("IOTDB_ENABLED", "true").lower() in ("true", "1", "yes")
-        
+
         self.host = os.getenv("IOTDB_HOST", "localhost")
         self.port = int(os.getenv("IOTDB_PORT", "6667"))
         self.username = os.getenv("IOTDB_USERNAME", "root")
@@ -65,7 +65,7 @@ class IoTDBConfig:
         """Check if IoTDB is connected"""
         if not self.enabled:
             return False
-            
+
         try:
             if self.session:
                 # Simple connectivity test - try to get time series
