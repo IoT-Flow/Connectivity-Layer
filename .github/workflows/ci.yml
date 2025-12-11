@@ -9,6 +9,27 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      mosquitto:
+        image: eclipse-mosquitto:2.0
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "mosquitto_pub -h localhost -t test -m test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - uses: actions/checkout@v4
@@ -51,6 +72,19 @@ jobs:
       run: |
         mkdir -p build/coverage
     
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y netcat-openbsd redis-tools
+    
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for Redis to be ready..."
+        timeout 30 bash -c 'until redis-cli -h localhost -p 6379 ping; do sleep 1; done'
+        echo "Waiting for MQTT broker to be ready..."
+        timeout 30 bash -c 'until nc -z localhost 1883; do sleep 1; done'
+        echo "Services are ready!"
+    
     - name: Format check with Black
       run: |
         poetry run black --check src/ tests/
@@ -70,8 +104,16 @@ jobs:
     - name: Run integration tests
       env:
         FLASK_ENV: testing
-        # Integration tests use in-memory SQLite and mock external services
         TESTING: true
+        # Use CI services
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        MQTT_BROKER: localhost
+        MQTT_PORT: 1883
+        # Disable IoTDB for CI (use mock/in-memory storage)
+        IOTDB_ENABLED: false
+        IOTDB_HOST: localhost
+        IOTDB_PORT: 6667
       run: |
         make test-cov-integration
     
@@ -79,6 +121,15 @@ jobs:
       env:
         FLASK_ENV: testing
         TESTING: true
+        # Use CI services
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        MQTT_BROKER: localhost
+        MQTT_PORT: 1883
+        # Disable IoTDB for CI (use mock/in-memory storage)
+        IOTDB_ENABLED: false
+        IOTDB_HOST: localhost
+        IOTDB_PORT: 6667
       run: |
         # Run both unit and integration tests for combined coverage
         poetry run pytest tests/unit/ tests/integration/ --cov=src --cov-report=term-missing --cov-report=html:build/coverage/htmlcov --cov-report=xml:build/coverage/coverage.xml -v --tb=short

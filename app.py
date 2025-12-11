@@ -205,7 +205,14 @@ def create_app(config_name=None):
             app.logger.error(f"Error creating database tables: {str(e)}")
     
     # Call connect_mqtt() at app startup (before handling requests)
-    connect_mqtt()
+    # Skip MQTT connection in testing mode
+    if not os.environ.get('TESTING', 'false').lower() == 'true':
+        try:
+            connect_mqtt()
+        except Exception as e:
+            app.logger.warning(f"MQTT connection failed during startup: {e}")
+    else:
+        app.logger.info("Skipping MQTT connection in testing mode")
     
     return app
 
