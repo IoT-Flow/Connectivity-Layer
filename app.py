@@ -37,8 +37,9 @@ def create_app(config_name=None):
     db.init_app(app)
     
     # Enhanced CORS configuration
+    allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:3001').split(',')
     CORS(app, 
-         origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+         origins=allowed_origins,
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers=["Content-Type", "Authorization", "X-API-Key"],
          expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"]
@@ -87,32 +88,37 @@ def create_app(config_name=None):
     app.register_blueprint(telemetry_bp)
     app.register_blueprint(control_bp)
     
-    # Initialize MQTT service with authentication
-    try:
-        # Get MQTT config from the config object
-        config_obj = config[config_name or 'development']()
-        
-        # Initialize MQTT authentication service with app context
-        mqtt_auth_service = MQTTAuthService(app=app)
-        
-        # Create MQTT service with authentication and app reference for Redis cache
-        mqtt_service = create_mqtt_service(config_obj.mqtt_config, mqtt_auth_service, app)
-        app.mqtt_service = mqtt_service
-        app.mqtt_auth_service = mqtt_auth_service
-        
-        # Connect to MQTT broker
-        if mqtt_service.connect():
-            app.logger.info("MQTT service initialized and connected successfully")
+    # Initialize MQTT service with authentication (skip in testing mode)
+    if not os.environ.get('TESTING', 'false').lower() == 'true':
+        try:
+            # Get MQTT config from the config object
+            config_obj = config[config_name or 'development']()
             
-            # Subscribe to device topics for server-side processing
-            mqtt_service.subscribe_to_system_topics()
+            # Initialize MQTT authentication service with app context
+            mqtt_auth_service = MQTTAuthService(app=app)
             
-            app.logger.info("MQTT authentication service initialized")
-        else:
-            app.logger.error("Failed to connect to MQTT broker")
+            # Create MQTT service with authentication and app reference for Redis cache
+            mqtt_service = create_mqtt_service(config_obj.mqtt_config, mqtt_auth_service, app)
+            app.mqtt_service = mqtt_service
+            app.mqtt_auth_service = mqtt_auth_service
             
-    except Exception as e:
-        app.logger.error(f"MQTT service initialization failed: {str(e)}")
+            # Connect to MQTT broker
+            if mqtt_service.connect():
+                app.logger.info("MQTT service initialized and connected successfully")
+                
+                # Subscribe to device topics for server-side processing
+                mqtt_service.subscribe_to_system_topics()
+                
+                app.logger.info("MQTT authentication service initialized")
+            else:
+                app.logger.error("Failed to connect to MQTT broker")
+                
+        except Exception as e:
+            app.logger.error(f"MQTT service initialization failed: {str(e)}")
+            app.mqtt_service = None
+            app.mqtt_auth_service = None
+    else:
+        app.logger.info("Skipping MQTT service initialization in testing mode")
         app.mqtt_service = None
         app.mqtt_auth_service = None
     

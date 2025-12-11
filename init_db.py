@@ -26,7 +26,7 @@ from src.models import (
     Group,
     DeviceGroupAssociation,
 )
-from werkzeug.security import generate_password_hash
+from src.utils.password import generate_password_hash
 from sqlalchemy import text, inspect
 
 def init_database():

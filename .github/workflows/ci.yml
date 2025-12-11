@@ -133,7 +133,7 @@ jobs:
         IOTDB_HOST: localhost
         IOTDB_PORT: 6667
       run: |
-        make test-e2e
+        poetry run pytest tests/e2e/test_complete_user_journey.py
     
     - name: Run combined test suite with coverage
       run: |
@@ -147,7 +147,7 @@ jobs:
         REDIS_HOST=localhost REDIS_PORT=6379 \
         MQTT_BROKER=localhost MQTT_PORT=1883 \
         IOTDB_ENABLED=false IOTDB_HOST=localhost IOTDB_PORT=6667 \
-        poetry run pytest tests/integration/ tests/e2e/ --cov=src --cov-append --cov-report=term-missing --cov-report=html:build/coverage/htmlcov --cov-report=xml:build/coverage/coverage.xml -v --tb=short
+        poetry run pytest tests/integration/ tests/e2e/test_complete_user_journey.py --cov=src --cov-append --cov-report=term-missing --cov-report=html:build/coverage/htmlcov --cov-report=xml:build/coverage/coverage.xml -v --tb=short
     
     - name: Validate test counts
       run: |

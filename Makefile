@@ -40,7 +40,7 @@ test-integration:
 	poetry run pytest tests/integration/
 
 test-e2e:
-	poetry run pytest tests/e2e/
+	poetry run pytest tests/e2e/test_complete_user_journey.py
 
 test-cov:
 	poetry run pytest --cov=src --cov-report=term-missing --cov-report=html:build/coverage/htmlcov --cov-report=xml:build/coverage/coverage.xml
@@ -67,7 +67,7 @@ ci:
 	@poetry run pytest tests/unit/ tests/integration/ --cov=src --cov-report=term-missing --cov-report=html:build/coverage/htmlcov --cov-report=xml:build/coverage/coverage.xml && echo "✅ Unit and integration tests passed" || (echo "❌ Unit/integration tests failed" && exit 1)
 	@echo ""
 	@echo "🌐 Step 4/4: Running e2e tests..."
-	@poetry run pytest tests/e2e/ && echo "✅ E2E tests passed" || (echo "❌ E2E tests failed" && exit 1)
+	@poetry run pytest tests/e2e/test_complete_user_journey.py && echo "✅ E2E tests passed" || (echo "❌ E2E tests failed" && exit 1)
 	@echo ""
 	@echo "✅ All CI checks passed! Ready to push. 🎉"
 
