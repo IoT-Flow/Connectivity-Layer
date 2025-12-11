@@ -30,6 +30,23 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      
+      iotdb:
+        image: apache/iotdb:2.0.5-standalone
+        ports:
+          - 6667:6667
+        env:
+          # Optimize IoTDB for CI environment
+          IOTDB_HEAP_OPTS: "-Xmx512m -Xms512m"
+          IOTDB_JMX_PORT: 31999
+          IOTDB_ENABLE_AUDIT_LOG: false
+          IOTDB_ENABLE_PERFORMANCE_STAT: false
+        options: >-
+          --health-cmd "nc -z localhost 6667 || exit 1"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 8
+          --health-start-period 90s
 
     steps:
     - uses: actions/checkout@v4
@@ -83,7 +100,25 @@ jobs:
         timeout 30 bash -c 'until redis-cli -h localhost -p 6379 ping; do sleep 1; done'
         echo "Waiting for MQTT broker to be ready..."
         timeout 30 bash -c 'until nc -z localhost 1883; do sleep 1; done'
-        echo "Services are ready!"
+        echo "Waiting for IoTDB to be ready..."
+        timeout 120 bash -c 'until nc -z localhost 6667; do sleep 2; done'
+        echo "All services are ready!"
+    
+    - name: Verify IoTDB connection
+      run: |
+        echo "Testing IoTDB connection..."
+        poetry run python -c "
+        from iotdb.Session import Session
+        import sys
+        try:
+            session = Session('localhost', 6667, 'root', 'root')
+            session.open(False)
+            print('✓ IoTDB connection successful')
+            session.close()
+        except Exception as e:
+            print(f'✗ IoTDB connection failed: {e}')
+            sys.exit(1)
+        "
     
     - name: Format check with Black
       run: |
@@ -111,10 +146,12 @@ jobs:
         REDIS_PORT: 6379
         MQTT_BROKER: localhost
         MQTT_PORT: 1883
-        # Disable IoTDB for CI (use mock/in-memory storage)
-        IOTDB_ENABLED: false
+        # Enable real IoTDB for integration testing
+        IOTDB_ENABLED: true
         IOTDB_HOST: localhost
         IOTDB_PORT: 6667
+        IOTDB_USERNAME: root
+        IOTDB_PASSWORD: root
       run: |
         make test-cov-integration
     
@@ -128,10 +165,12 @@ jobs:
         REDIS_PORT: 6379
         MQTT_BROKER: localhost
         MQTT_PORT: 1883
-        # Disable IoTDB for CI (use mock/in-memory storage)
-        IOTDB_ENABLED: false
+        # Enable real IoTDB for e2e testing
+        IOTDB_ENABLED: true
         IOTDB_HOST: localhost
         IOTDB_PORT: 6667
+        IOTDB_USERNAME: root
+        IOTDB_PASSWORD: root
       run: |
         make test-e2e
     
@@ -145,10 +184,12 @@ jobs:
         REDIS_PORT: 6379
         MQTT_BROKER: localhost
         MQTT_PORT: 1883
-        # Disable IoTDB for CI (use mock/in-memory storage)
-        IOTDB_ENABLED: false
+        # Enable real IoTDB for comprehensive testing
+        IOTDB_ENABLED: true
         IOTDB_HOST: localhost
         IOTDB_PORT: 6667
+        IOTDB_USERNAME: root
+        IOTDB_PASSWORD: root
       run: |
         # Run unit, integration, and e2e tests for combined coverage
         poetry run pytest tests/unit/ tests/integration/ tests/e2e/ --cov=src --cov-report=term-missing --cov-report=html:build/coverage/htmlcov --cov-report=xml:build/coverage/coverage.xml -v --tb=short
@@ -194,6 +235,26 @@ jobs:
           build/coverage/
           .coverage
         retention-days: 30
+    
+    - name: Debug IoTDB on failure
+      if: failure()
+      run: |
+        echo "=== IoTDB Debug Information ==="
+        echo "Checking IoTDB container status..."
+        docker ps -a | grep iotdb || echo "No IoTDB container found"
+        
+        echo "Checking IoTDB logs..."
+        docker logs $(docker ps -aq --filter "ancestor=apache/iotdb:1.2.2-standalone") 2>/dev/null || echo "Could not get IoTDB logs"
+        
+        echo "Checking port availability..."
+        netstat -tlnp | grep 6667 || echo "Port 6667 not listening"
+        
+        echo "Testing direct connection..."
+        nc -zv localhost 6667 || echo "Cannot connect to IoTDB port"
+        
+        echo "Checking system resources..."
+        free -h
+        df -h
     
     - name: Comment coverage on PR
       if: github.event_name == 'pull_request'
