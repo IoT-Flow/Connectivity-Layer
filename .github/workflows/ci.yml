@@ -136,22 +136,18 @@ jobs:
         make test-e2e
     
     - name: Run combined test suite with coverage
-      env:
-        FLASK_ENV: testing
-        TESTING: true
-        CI: true
-        # Use CI services
-        REDIS_HOST: localhost
-        REDIS_PORT: 6379
-        MQTT_BROKER: localhost
-        MQTT_PORT: 1883
-        # Disable IoTDB for CI (use mock/in-memory storage)
-        IOTDB_ENABLED: false
-        IOTDB_HOST: localhost
-        IOTDB_PORT: 6667
       run: |
-        # Run unit, integration, and e2e tests for combined coverage
-        poetry run pytest tests/unit/ tests/integration/ tests/e2e/ --cov=src --cov-report=term-missing --cov-report=html:build/coverage/htmlcov --cov-report=xml:build/coverage/coverage.xml -v --tb=short
+        # Run unit tests without CI environment variables (to test actual unavailability scenarios)
+        echo "Running unit tests..."
+        FLASK_ENV=testing TESTING=true poetry run pytest tests/unit/ --cov=src --cov-append -v --tb=short
+        
+        # Run integration and e2e tests with CI environment variables
+        echo "Running integration and e2e tests..."
+        FLASK_ENV=testing TESTING=true CI=true \
+        REDIS_HOST=localhost REDIS_PORT=6379 \
+        MQTT_BROKER=localhost MQTT_PORT=1883 \
+        IOTDB_ENABLED=false IOTDB_HOST=localhost IOTDB_PORT=6667 \
+        poetry run pytest tests/integration/ tests/e2e/ --cov=src --cov-append --cov-report=term-missing --cov-report=html:build/coverage/htmlcov --cov-report=xml:build/coverage/coverage.xml -v --tb=short
     
     - name: Validate test counts
       run: |
