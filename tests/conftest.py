@@ -226,6 +226,12 @@ def admin_headers():
 
 
 @pytest.fixture
+def admin_token():
+    """Create admin token for testing"""
+    return "test"
+
+
+@pytest.fixture
 def multiple_devices(app, test_user):
     """Create multiple test devices"""
     with app.app_context():
@@ -379,6 +385,16 @@ def mock_mqtt_service(app, monkeypatch):
     mock_service.subscribe.return_value = True
     mock_service.is_connected.return_value = True
     mock_service.client = MagicMock()
+
+    # Mock the get_connection_status method to return serializable data
+    mock_service.get_connection_status.return_value = {
+        "host": "localhost",
+        "port": 1883,
+        "connected": True,
+        "use_tls": False,
+        "client_id": "test_client",
+        "status": "connected",
+    }
 
     app.mqtt_service = mock_service
 

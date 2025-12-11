@@ -59,9 +59,9 @@ def list_all_devices():
 @require_admin_token
 def get_device_details(device_id):
     """Get detailed device information including auth and config"""
-    try:
-        device = Device.query.get_or_404(device_id)
+    device = Device.query.get_or_404(device_id)
 
+    try:
         # Get device auth records
         auth_records = DeviceAuth.query.filter_by(device_id=device_id).all()
         auth_list = []
@@ -119,8 +119,9 @@ def get_device_details(device_id):
 @require_admin_token
 def update_device_status(device_id):
     """Update device status (active/inactive/maintenance)"""
+    device = Device.query.get_or_404(device_id)
+
     try:
-        device = Device.query.get_or_404(device_id)
         data = request.get_json()
 
         if not data or "status" not in data:
@@ -243,8 +244,9 @@ def get_system_stats():
 @require_admin_token
 def delete_device(device_id):
     """Delete a device and all related data"""
+    device = Device.query.get_or_404(device_id)
+
     try:
-        device = Device.query.get_or_404(device_id)
         device_name = device.name
 
         # Delete related auth records and configurations (cascaded by relationships)

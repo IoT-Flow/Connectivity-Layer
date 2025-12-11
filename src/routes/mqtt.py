@@ -101,6 +101,7 @@ def publish_message():
 
 
 @mqtt_bp.route("/subscribe", methods=["POST"])
+@require_admin_token
 def subscribe_to_topic():
     """Subscribe to an MQTT topic (admin only)"""
     try:
@@ -345,6 +346,7 @@ def send_device_command(device_id: str):
 
 
 @mqtt_bp.route("/fleet/<group_id>/command", methods=["POST"])
+@require_admin_token
 def send_fleet_command(group_id: str):
     """Send a command to a fleet/group of devices via MQTT (admin only)"""
     try:

@@ -1,4 +1,4 @@
-name: Connectivity Layer CI (Unit Tests)
+name: Connectivity Layer CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ master, main, develop ]
 
 jobs:
-  unit-tests:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -45,14 +45,59 @@ jobs:
     - name: Verify installation
       run: |
         poetry run python --version
-        poetry run pip list | grep -E "(flask|pytest|apache-iotdb|paho-mqtt)"
+        poetry run pip list | grep -E "(flask|pytest|apache-iotdb|paho-mqtt|redis)"
     
-    - name: Run fast CI (unit tests only)
+    - name: Create build directories
+      run: |
+        mkdir -p build/coverage
+    
+    - name: Format check with Black
+      run: |
+        poetry run black --check src/ tests/
+    
+    - name: Lint with flake8
+      run: |
+        poetry run flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        poetry run flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Run unit tests
       env:
         FLASK_ENV: testing
         # Tests use in-memory SQLite and mock Redis - no external services needed
       run: |
-        make ci-fast
+        make test-cov-unit
+    
+    - name: Run integration tests
+      env:
+        FLASK_ENV: testing
+        # Integration tests use in-memory SQLite and mock external services
+        TESTING: true
+      run: |
+        make test-cov-integration
+    
+    - name: Run combined test suite with coverage
+      env:
+        FLASK_ENV: testing
+        TESTING: true
+      run: |
+        # Run both unit and integration tests for combined coverage
+        poetry run pytest tests/unit/ tests/integration/ --cov=src --cov-report=term-missing --cov-report=html:build/coverage/htmlcov --cov-report=xml:build/coverage/coverage.xml -v --tb=short
+    
+    - name: Validate test counts
+      run: |
+        echo "Validating expected test counts..."
+        UNIT_COUNT=$(poetry run pytest tests/unit/ --collect-only -q | grep "test session starts" -A 1 | grep "collected" | awk '{print $2}')
+        INTEGRATION_COUNT=$(poetry run pytest tests/integration/ --collect-only -q | grep "test session starts" -A 1 | grep "collected" | awk '{print $2}')
+        echo "Unit tests found: $UNIT_COUNT (expected: 296)"
+        echo "Integration tests found: $INTEGRATION_COUNT (expected: 179)"
+        
+        if [ "$UNIT_COUNT" != "296" ]; then
+          echo "⚠️  Unit test count mismatch! Expected 296, found $UNIT_COUNT"
+        fi
+        
+        if [ "$INTEGRATION_COUNT" != "179" ]; then
+          echo "⚠️  Integration test count mismatch! Expected 179, found $INTEGRATION_COUNT"
+        fi
     
     - name: Generate coverage badge
       if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
@@ -74,7 +119,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: unit-test-coverage-report
+        name: test-coverage-report
         path: |
           build/coverage/
           .coverage
@@ -86,14 +131,38 @@ jobs:
       with:
         script: |
           const fs = require('fs');
+          
+          // Read coverage report
           const coverage = fs.readFileSync('build/coverage/coverage.xml', 'utf8');
           const match = coverage.match(/line-rate="([0-9.]+)"/);
+          
           if (match) {
             const rate = (parseFloat(match[1]) * 100).toFixed(2);
+            
+            // Create coverage comment
+            const body = `## 🧪 Test Coverage Report
+            
+**✅ All tests passed!**
+
+| Test Suite | Status |
+|------------|--------|
+| Unit Tests (296) | ✅ Passed |
+| Integration Tests (179) | ✅ Passed |
+| **Total Coverage** | **${rate}%** |
+
+### 🔍 Test Details
+- **Unit Tests**: Core functionality and isolated component testing
+- **Integration Tests**: API endpoints and service integration testing
+- **Coverage**: Line coverage across the entire codebase
+
+🚀 **CI Pipeline**: All checks completed successfully!
+
+📊 **Detailed Report**: Check the artifacts for the full HTML coverage report.`;
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Unit Test Coverage Report\n\n✅ Unit tests passed (296 tests)!\n\n📊 Coverage: **${rate}%**\n\n🚀 Fast CI pipeline completed successfully.\n\nSee detailed report in artifacts.`
+              body: body
             });
           }

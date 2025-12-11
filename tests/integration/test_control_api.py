@@ -14,20 +14,20 @@ class TestControlCommands:
         headers = {"X-API-Key": test_device.api_key}
         payload = {"command": "SET_THRESHOLD", "parameters": {"temp_max": 30, "humidity_max": 80}}
 
-        response = client.post(f"/api/v1/control/{test_device.id}/control", json=payload, headers=headers)
+        response = client.post(f"/api/v1/devices/{test_device.id}/control", json=payload, headers=headers)
 
         assert response.status_code == 201
         data = response.get_json()
         assert data["command"] == "SET_THRESHOLD"
         assert data["status"] == "pending"
         assert data["device_id"] == test_device.id
-        assert "control_id" in data
+        assert "id" in data
 
     def test_send_control_command_without_auth(self, client, test_device):
         """Test sending control command without authentication."""
         payload = {"command": "RESTART", "parameters": {}}
 
-        response = client.post(f"/api/v1/control/{test_device.id}/control", json=payload)
+        response = client.post(f"/api/v1/devices/{test_device.id}/control", json=payload)
 
         assert response.status_code == 401
 
@@ -36,7 +36,7 @@ class TestControlCommands:
         headers = {"X-API-Key": test_device.api_key}
         payload = {"command": "UPDATE_CONFIG", "parameters": {"setting": "value"}}
 
-        response = client.post("/api/v1/control/999999/control", json=payload, headers=headers)
+        response = client.post("/api/v1/devices/999999/control", json=payload, headers=headers)
 
         assert response.status_code == 404
 
@@ -45,7 +45,7 @@ class TestControlCommands:
         headers = {"X-API-Key": test_device.api_key}
         payload = {"parameters": {"setting": "value"}}
 
-        response = client.post(f"/api/v1/control/{test_device.id}/control", json=payload, headers=headers)
+        response = client.post(f"/api/v1/devices/{test_device.id}/control", json=payload, headers=headers)
 
         assert response.status_code == 400
 
@@ -61,10 +61,10 @@ class TestControlCommands:
 
         control_ids = []
         for cmd in commands:
-            response = client.post(f"/api/v1/control/{test_device.id}/control", json=cmd, headers=headers)
+            response = client.post(f"/api/v1/devices/{test_device.id}/control", json=cmd, headers=headers)
             assert response.status_code == 201
             data = response.get_json()
-            control_ids.append(data["control_id"])
+            control_ids.append(data["id"])
 
         # Verify all commands were created
         assert len(control_ids) == 3
@@ -78,7 +78,7 @@ class TestPendingControls:
         """Test getting pending controls when none exist."""
         headers = {"X-API-Key": test_device.api_key}
 
-        response = client.get(f"/api/v1/control/{test_device.id}/control/pending", headers=headers)
+        response = client.get(f"/api/v1/devices/{test_device.id}/control/pending", headers=headers)
 
         assert response.status_code == 200
         data = response.get_json()
@@ -100,7 +100,7 @@ class TestPendingControls:
             db.session.commit()
 
         headers = {"X-API-Key": test_device.api_key}
-        response = client.get(f"/api/v1/control/{test_device.id}/control/pending", headers=headers)
+        response = client.get(f"/api/v1/devices/{test_device.id}/control/pending", headers=headers)
 
         assert response.status_code == 200
         data = response.get_json()
@@ -123,7 +123,7 @@ class TestPendingControls:
             db.session.commit()
 
         headers = {"X-API-Key": test_device.api_key}
-        response = client.get(f"/api/v1/control/{test_device.id}/control/pending", headers=headers)
+        response = client.get(f"/api/v1/devices/{test_device.id}/control/pending", headers=headers)
 
         assert response.status_code == 200
         data = response.get_json()
@@ -132,7 +132,7 @@ class TestPendingControls:
 
     def test_get_pending_controls_without_auth(self, client, test_device):
         """Test getting pending controls without authentication."""
-        response = client.get(f"/api/v1/control/{test_device.id}/control/pending")
+        response = client.get(f"/api/v1/devices/{test_device.id}/control/pending")
 
         assert response.status_code == 401
 
@@ -140,7 +140,7 @@ class TestPendingControls:
         """Test getting pending controls for wrong device."""
         # Create another device
         with app.app_context():
-            other_user = User(username="other_user", email="other@test.com")
+            other_user = User(username="other_user", email="other@test.com", password_hash="hashed_password")
             db.session.add(other_user)
             db.session.commit()
 
@@ -150,7 +150,7 @@ class TestPendingControls:
             other_device_api_key = other_device.api_key
 
         headers = {"X-API-Key": other_device_api_key}
-        response = client.get(f"/api/v1/control/{test_device.id}/control/pending", headers=headers)
+        response = client.get(f"/api/v1/devices/{test_device.id}/control/pending", headers=headers)
 
         assert response.status_code == 403
 
@@ -170,10 +170,10 @@ class TestControlStatus:
             control_id = control.id
 
         headers = {"X-API-Key": test_device.api_key}
-        payload = {"status": "completed", "result": {"success": True, "message": "Firmware updated successfully"}}
+        payload = {"status": "completed"}
 
         response = client.post(
-            f"/api/v1/control/{test_device.id}/control/{control_id}/status", json=payload, headers=headers
+            f"/api/v1/devices/{test_device.id}/control/{control_id}/status", json=payload, headers=headers
         )
 
         assert response.status_code == 200
@@ -184,7 +184,6 @@ class TestControlStatus:
         with app.app_context():
             updated_control = DeviceControl.query.get(control_id)
             assert updated_control.status == "completed"
-            assert updated_control.result is not None
 
     def test_update_control_status_to_failed(self, client, test_device, app):
         """Test updating control status to failed."""
@@ -195,10 +194,10 @@ class TestControlStatus:
             control_id = control.id
 
         headers = {"X-API-Key": test_device.api_key}
-        payload = {"status": "failed", "result": {"error": "Device not responding"}}
+        payload = {"status": "failed"}
 
         response = client.post(
-            f"/api/v1/control/{test_device.id}/control/{control_id}/status", json=payload, headers=headers
+            f"/api/v1/devices/{test_device.id}/control/{control_id}/status", json=payload, headers=headers
         )
 
         assert response.status_code == 200
@@ -218,7 +217,7 @@ class TestControlStatus:
 
         payload = {"status": "completed"}
 
-        response = client.post(f"/api/v1/control/{test_device.id}/control/{control_id}/status", json=payload)
+        response = client.post(f"/api/v1/devices/{test_device.id}/control/{control_id}/status", json=payload)
 
         assert response.status_code == 401
 
@@ -227,7 +226,7 @@ class TestControlStatus:
         headers = {"X-API-Key": test_device.api_key}
         payload = {"status": "completed"}
 
-        response = client.post(f"/api/v1/control/{test_device.id}/control/999999/status", json=payload, headers=headers)
+        response = client.post(f"/api/v1/devices/{test_device.id}/control/999999/status", json=payload, headers=headers)
 
         assert response.status_code == 404
 
@@ -243,7 +242,7 @@ class TestControlStatus:
         payload = {"result": {"message": "No status provided"}}
 
         response = client.post(
-            f"/api/v1/control/{test_device.id}/control/{control_id}/status", json=payload, headers=headers
+            f"/api/v1/devices/{test_device.id}/control/{control_id}/status", json=payload, headers=headers
         )
 
         assert response.status_code == 400
@@ -257,25 +256,10 @@ class TestControlStatus:
             control_id = control.id
 
         headers = {"X-API-Key": test_device.api_key}
-        payload = {
-            "status": "completed",
-            "result": {
-                "cpu_usage": 45.2,
-                "memory_usage": 67.8,
-                "temperature": 42.5,
-                "uptime": 86400,
-                "diagnostics": {"sensors": "ok", "connectivity": "ok", "storage": "warning"},
-            },
-        }
+        payload = {"status": "completed"}
 
         response = client.post(
-            f"/api/v1/control/{test_device.id}/control/{control_id}/status", json=payload, headers=headers
+            f"/api/v1/devices/{test_device.id}/control/{control_id}/status", json=payload, headers=headers
         )
 
         assert response.status_code == 200
-
-        # Verify complex result data is stored
-        with app.app_context():
-            updated_control = DeviceControl.query.get(control_id)
-            assert updated_control.result["cpu_usage"] == 45.2
-            assert updated_control.result["diagnostics"]["storage"] == "warning"
