@@ -142,27 +142,3 @@ jobs:
             // Create coverage comment
             const body = `## 🧪 Test Coverage Report
             
-**✅ All tests passed!**
-
-| Test Suite | Status |
-|------------|--------|
-| Unit Tests (296) | ✅ Passed |
-| Integration Tests (179) | ✅ Passed |
-| **Total Coverage** | **${rate}%** |
-
-### 🔍 Test Details
-- **Unit Tests**: Core functionality and isolated component testing
-- **Integration Tests**: API endpoints and service integration testing
-- **Coverage**: Line coverage across the entire codebase
-
-🚀 **CI Pipeline**: All checks completed successfully!
-
-📊 **Detailed Report**: Check the artifacts for the full HTML coverage report.`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
-          }
