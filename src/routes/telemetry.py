@@ -3,12 +3,16 @@ from datetime import datetime, timezone
 from src.services.iotdb import IoTDBService
 from src.models import Device
 from src.metrics import TELEMETRY_MESSAGES
+import logging
 
 # Create blueprint for telemetry routes
 telemetry_bp = Blueprint("telemetry", __name__, url_prefix="/api/v1/telemetry")
 
 # Initialize IoTDB service
 iotdb_service = IoTDBService()
+
+# Logger
+logger = logging.getLogger(__name__)
 
 
 # Helper to get device by API key and check access
@@ -19,8 +23,15 @@ def get_authenticated_device(device_id=None):
     device = Device.query.filter_by(api_key=api_key).first()
     if not device:
         return None, jsonify({"error": "Invalid API key"}), 401
-    if device_id is not None and int(device.id) != int(device_id):
-        return None, jsonify({"error": "Forbidden: device mismatch"}), 403
+
+    # If device_id is specified, check if it exists first
+    if device_id is not None:
+        target_device = Device.query.get(device_id)
+        if not target_device:
+            return None, jsonify({"error": "Device not found"}), 404
+        if int(device.id) != int(device_id):
+            return None, jsonify({"error": "Forbidden: device mismatch"}), 403
+
     return device, None, None
 
 
@@ -110,9 +121,69 @@ def store_telemetry():
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 
+@telemetry_bp.route("/device/<int:device_id>", methods=["GET"])
+def get_device_telemetry_new(device_id):
+    """Get telemetry data for a specific device - Migration Requirements Format"""
+    device, err, code = get_authenticated_device(device_id)
+    if err:
+        return {"success": False, "error": err.get_json().get("error", "Authentication failed")}, code
+
+    try:
+        # Parse query parameters
+        data_type = request.args.get("data_type")
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
+        limit = min(int(request.args.get("limit", 100)), 1000)
+        page = int(request.args.get("page", 1))
+
+        # Query telemetry data using new method
+        result = iotdb_service.query_telemetry_data(
+            device_id=str(device_id),
+            user_id=str(device.user_id),
+            data_type=data_type,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            page=page,
+        )
+
+        # Build response according to migration requirements
+        response = {
+            "success": True,
+            "device_id": device_id,
+            "device_name": device.name,
+            "device_type": device.device_type,
+            "telemetry": result["records"],
+            "pagination": {
+                "total": result["total"],
+                "currentPage": result["page"],
+                "totalPages": result["pages"],
+                "limit": limit,
+            },
+            "iotdb_available": iotdb_service.is_available(),
+        }
+
+        # Add filters if applied
+        filters = {}
+        if data_type:
+            filters["data_type"] = data_type
+        if start_date:
+            filters["start_date"] = start_date
+        if end_date:
+            filters["end_date"] = end_date
+        if filters:
+            response["filters"] = filters
+
+        return response, 200
+
+    except Exception as e:
+        logger.error(f"Error retrieving telemetry for device {device_id}: {e}")
+        return {"success": False, "error": "Failed to retrieve telemetry data"}, 500
+
+
 @telemetry_bp.route("/<int:device_id>", methods=["GET"])
 def get_device_telemetry(device_id):
-    """Get telemetry data for a specific device"""
+    """Get telemetry data for a specific device - Legacy endpoint"""
     device, err, code = get_authenticated_device(device_id)
     if err:
         return err, code
@@ -150,8 +221,7 @@ def get_device_latest_telemetry(device_id):
         return err, code
     try:
         latest_data = iotdb_service.get_device_latest_telemetry(
-            device_id=str(device_id),
-            user_id=str(device.user_id)  # FIX: Pass user_id for correct path
+            device_id=str(device_id), user_id=str(device.user_id)  # FIX: Pass user_id for correct path
         )
         if latest_data:
             return (
@@ -161,6 +231,7 @@ def get_device_latest_telemetry(device_id):
                         "device_name": device.name,
                         "device_type": device.device_type,
                         "latest_data": latest_data,
+                        "data": latest_data,  # Backward compatibility
                         "iotdb_available": iotdb_service.is_available(),
                     }
                 ),
@@ -183,9 +254,79 @@ def get_device_latest_telemetry(device_id):
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 
+@telemetry_bp.route("/device/<int:device_id>/aggregated", methods=["GET"])
+def get_device_aggregated_telemetry_new(device_id):
+    """Get aggregated telemetry data for a device - Migration Requirements Format"""
+    device, err, code = get_authenticated_device(device_id)
+    if err:
+        return {"success": False, "error": err.get_json().get("error", "Authentication failed")}, code
+
+    try:
+        # Parse required parameters
+        data_type = request.args.get("data_type")
+        aggregation = request.args.get("aggregation")
+
+        if not data_type:
+            return {"success": False, "error": "data_type parameter is required"}, 400
+
+        if not aggregation:
+            return {"success": False, "error": "aggregation parameter is required"}, 400
+
+        # Validate aggregation function
+        valid_aggregations = ["avg", "sum", "min", "max", "count"]
+        if aggregation not in valid_aggregations:
+            return {
+                "success": False,
+                "error": f"Invalid aggregation function. Must be one of: {', '.join(valid_aggregations)}",
+            }, 400
+
+        # Parse optional parameters
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
+
+        # Get aggregated data using new method
+        result = iotdb_service.aggregate_telemetry_data(
+            device_id=str(device_id),
+            user_id=str(device.user_id),
+            data_type=data_type,
+            aggregation=aggregation,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Build response according to migration requirements
+        response = {
+            "success": True,
+            "device_id": device_id,
+            "device_name": device.name,
+            "device_type": device.device_type,
+            "aggregation": {
+                "type": aggregation,
+                "data_type": data_type,
+                "value": result["value"],
+                "count": result["count"],
+            },
+            "iotdb_available": iotdb_service.is_available(),
+        }
+
+        # Add date range if provided
+        if start_date:
+            response["aggregation"]["start_date"] = start_date
+        if end_date:
+            response["aggregation"]["end_date"] = end_date
+
+        return response, 200
+
+    except ValueError as e:
+        return {"success": False, "error": str(e)}, 400
+    except Exception as e:
+        logger.error(f"Error getting aggregated telemetry for device {device_id}: {e}")
+        return {"success": False, "error": "Failed to retrieve aggregated telemetry data"}, 500
+
+
 @telemetry_bp.route("/<int:device_id>/aggregated", methods=["GET"])
 def get_device_aggregated_telemetry(device_id):
-    """Get aggregated telemetry data for a device"""
+    """Get aggregated telemetry data for a device - Legacy endpoint"""
     device, err, code = get_authenticated_device(device_id)
     if err:
         return err, code
@@ -265,7 +406,7 @@ def delete_device_telemetry(device_id):
             device_id=str(device_id),
             user_id=str(device.user_id),  # FIX: Pass user_id for correct path
             start_time=start_time,
-            stop_time=stop_time
+            stop_time=stop_time,
         )
         if success:
             current_app.logger.info(f"Telemetry data deleted for device {device.name} (ID: {device_id})")

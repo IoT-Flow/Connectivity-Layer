@@ -353,18 +353,18 @@ class IoTDBService:
         """Close IoTDB connection"""
         iotdb_config.close()
 
-    def get_device_latest_telemetry(self, device_id: str) -> Dict[str, Any]:
+    def get_device_latest_telemetry(self, device_id: str, user_id: str = None) -> Dict[str, Any]:
         """
         Get the latest telemetry data for a device
         """
-        logger.debug(f"Getting latest telemetry data - device_id={device_id}")
+        logger.debug(f"Getting latest telemetry data - device_id={device_id}, user_id={user_id}")
 
         if not self.is_available():
             logger.warning("IoTDB is not available")
             return {}
 
         try:
-            device_path = iotdb_config.get_device_path(device_id)
+            device_path = iotdb_config.get_device_path(device_id, user_id)
 
             # Query for latest data (limit 1, order by time desc)
             query = f"SELECT * FROM {device_path} ORDER BY time DESC LIMIT 1"
@@ -631,3 +631,211 @@ class IoTDBService:
         except Exception as e:
             logger.error(f"Error getting user telemetry count from IoTDB: {str(e)}")
             return 0
+
+    def query_telemetry_data(
+        self, device_id, user_id, data_type=None, start_date=None, end_date=None, limit=100, page=1
+    ):
+        """Query telemetry data with enhanced filtering and pagination"""
+        try:
+            if not self.is_available():
+                logger.warning("IoTDB is not available")
+                return {"records": [], "total": 0, "page": page, "pages": 0}
+
+            # Build device path
+            device_path = iotdb_config.get_device_path(device_id, user_id)
+
+            # Build query with filters
+            if data_type:
+                # Query specific measurement
+                query = f"SELECT {data_type} FROM {device_path}"
+            else:
+                # Query all measurements
+                query = f"SELECT * FROM {device_path}"
+
+            # Add time range filters
+            conditions = []
+            if start_date:
+                # Parse ISO date to timestamp
+                try:
+                    start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+                    start_ms = int(start_dt.timestamp() * 1000)
+                    conditions.append(f"time >= {start_ms}")
+                except:
+                    logger.warning(f"Invalid start_date format: {start_date}")
+
+            if end_date:
+                # Parse ISO date to timestamp
+                try:
+                    end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+                    end_ms = int(end_dt.timestamp() * 1000)
+                    conditions.append(f"time <= {end_ms}")
+                except:
+                    logger.warning(f"Invalid end_date format: {end_date}")
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+            # Add ordering and pagination
+            query += " ORDER BY time DESC"
+            offset = (page - 1) * limit
+            query += f" LIMIT {limit} OFFSET {offset}"
+
+            logger.debug(f"Executing query: {query}")
+
+            # Execute query
+            session_data_set = self.session.execute_query_statement(query)
+            records = []
+
+            while session_data_set.has_next():
+                record = session_data_set.next()
+                timestamp = record.get_timestamp()
+
+                # Build record
+                record_data = {
+                    "timestamp": datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc).isoformat(),
+                    "device_id": int(device_id),
+                }
+
+                # Add measurements
+                measurements = {}
+                for i, field in enumerate(session_data_set.get_column_names()[1:]):
+                    field_name = field.split(".")[-1]  # Get measurement name
+                    if not field_name.startswith("meta_"):
+                        value = record.get_fields()[i]
+                        if value is not None:
+                            # Try to parse JSON values
+                            try:
+                                measurements[field_name] = json.loads(str(value))
+                            except:
+                                measurements[field_name] = value
+
+                if measurements:
+                    record_data["measurements"] = measurements
+                    records.append(record_data)
+
+            session_data_set.close_operation_handle()
+
+            # Get total count for pagination
+            count_query = f"SELECT COUNT(*) FROM {device_path}"
+            if conditions:
+                count_query += " WHERE " + " AND ".join(conditions)
+
+            total = 0
+            try:
+                count_result = self.session.execute_query_statement(count_query)
+                if count_result.has_next():
+                    total = count_result.next().get_fields()[0] or 0
+                count_result.close_operation_handle()
+            except Exception as e:
+                logger.warning(f"Could not get total count: {e}")
+                total = len(records)
+
+            pages = (total + limit - 1) // limit if total > 0 else 0
+
+            logger.info(f"Retrieved {len(records)} telemetry records for device {device_id} (page {page}/{pages})")
+
+            return {"records": records, "total": total, "page": page, "pages": pages}
+
+        except Exception as e:
+            logger.error(f"Error querying telemetry data for device {device_id}: {e}")
+            return {"records": [], "total": 0, "page": page, "pages": 0}
+
+    def aggregate_telemetry_data(self, device_id, user_id, data_type, aggregation, start_date=None, end_date=None):
+        """Aggregate telemetry data with specified function"""
+        try:
+            if not self.is_available():
+                logger.warning("IoTDB is not available")
+                return {"value": None, "count": 0, "aggregation": aggregation, "data_type": data_type}
+
+            # Validate aggregation function
+            valid_aggregations = ["avg", "sum", "min", "max", "count"]
+            if aggregation not in valid_aggregations:
+                raise ValueError(
+                    f"Invalid aggregation function '{aggregation}'. Must be one of: {', '.join(valid_aggregations)}"
+                )
+
+            # Build device path
+            device_path = iotdb_config.get_device_path(device_id, user_id)
+
+            # Build aggregation query
+            if aggregation == "count":
+                query = f"SELECT COUNT({data_type}) FROM {device_path}"
+            else:
+                query = f"SELECT {aggregation.upper()}({data_type}) FROM {device_path}"
+
+            # Add time range filters
+            conditions = []
+            if start_date:
+                try:
+                    start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+                    start_ms = int(start_dt.timestamp() * 1000)
+                    conditions.append(f"time >= {start_ms}")
+                except:
+                    logger.warning(f"Invalid start_date format: {start_date}")
+
+            if end_date:
+                try:
+                    end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+                    end_ms = int(end_dt.timestamp() * 1000)
+                    conditions.append(f"time <= {end_ms}")
+                except:
+                    logger.warning(f"Invalid end_date format: {end_date}")
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+            logger.debug(f"Executing aggregation query: {query}")
+
+            # Execute query
+            session_data_set = self.session.execute_query_statement(query)
+
+            value = None
+            count = 0
+
+            if session_data_set.has_next():
+                record = session_data_set.next()
+                fields = record.get_fields()
+                if fields and len(fields) > 0:
+                    field_value = fields[0]
+                    # Convert IoTDB Field object to Python native type
+                    if hasattr(field_value, "get_value"):
+                        value = field_value.get_value()
+                    elif hasattr(field_value, "value"):
+                        value = field_value.value
+                    else:
+                        value = field_value
+
+            session_data_set.close_operation_handle()
+
+            # Get count if not already counting
+            if aggregation != "count":
+                count_query = f"SELECT COUNT({data_type}) FROM {device_path}"
+                if conditions:
+                    count_query += " WHERE " + " AND ".join(conditions)
+
+                try:
+                    count_result = self.session.execute_query_statement(count_query)
+                    if count_result.has_next():
+                        count_field = count_result.next().get_fields()[0]
+                        # Convert IoTDB Field object to Python native type
+                        if hasattr(count_field, "get_value"):
+                            count = count_field.get_value() or 0
+                        elif hasattr(count_field, "value"):
+                            count = count_field.value or 0
+                        else:
+                            count = count_field or 0
+                    count_result.close_operation_handle()
+                except Exception as e:
+                    logger.warning(f"Could not get count for aggregation: {e}")
+            else:
+                count = value or 0
+
+            logger.info(f"Aggregated {data_type} for device {device_id}: {aggregation}={value}, count={count}")
+
+            return {"value": value, "count": count, "aggregation": aggregation, "data_type": data_type}
+
+        except Exception as e:
+            logger.error(f"Error aggregating telemetry data for device {device_id}: {e}")
+            if "Invalid aggregation" in str(e):
+                raise  # Re-raise validation errors
+            return {"value": None, "count": 0, "aggregation": aggregation, "data_type": data_type}
