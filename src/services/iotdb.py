@@ -666,8 +666,12 @@ class IoTDBService:
         """Query telemetry data with enhanced filtering and pagination"""
         try:
             if not self.is_available():
-                logger.warning("IoTDB is not available")
-                return {"records": [], "total": 0, "page": page, "pages": 0}
+                if not iotdb_config.enabled:
+                    logger.debug("IoTDB is disabled - returning empty query results")
+                    return {"records": [], "total": 0, "page": page, "pages": 0}
+                else:
+                    logger.warning("IoTDB is not available")
+                    return {"records": [], "total": 0, "page": page, "pages": 0}
 
             # Build device path
             device_path = iotdb_config.get_device_path(device_id, user_id)
@@ -771,16 +775,20 @@ class IoTDBService:
     def aggregate_telemetry_data(self, device_id, user_id, data_type, aggregation, start_date=None, end_date=None):
         """Aggregate telemetry data with specified function"""
         try:
-            if not self.is_available():
-                logger.warning("IoTDB is not available")
-                return {"value": None, "count": 0, "aggregation": aggregation, "data_type": data_type}
-
-            # Validate aggregation function
+            # Validate aggregation function first (even if IoTDB is disabled)
             valid_aggregations = ["avg", "sum", "min", "max", "count"]
             if aggregation not in valid_aggregations:
                 raise ValueError(
                     f"Invalid aggregation function '{aggregation}'. Must be one of: {', '.join(valid_aggregations)}"
                 )
+
+            if not self.is_available():
+                if not iotdb_config.enabled:
+                    logger.debug("IoTDB is disabled - returning empty aggregation result")
+                    return {"value": None, "count": 0, "aggregation": aggregation, "data_type": data_type}
+                else:
+                    logger.warning("IoTDB is not available")
+                    return {"value": None, "count": 0, "aggregation": aggregation, "data_type": data_type}
 
             # Build device path
             device_path = iotdb_config.get_device_path(device_id, user_id)
