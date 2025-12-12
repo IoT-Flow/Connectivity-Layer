@@ -871,3 +871,154 @@ def sync_device_status_to_redis(device, is_online, time_since_last_seen=None):
 
         logger = logging.getLogger(__name__)
         logger.error(f"Error syncing device {device.id} status to Redis: {e}")
+
+
+@device_bp.route("/<int:device_id>/summary", methods=["GET"])
+@security_headers_middleware()
+@request_metrics_middleware()
+@rate_limit_device(max_requests=30, window=60, per_device=False)  # 30 requests per minute per IP
+def get_device_summary(device_id):
+    """
+    Get comprehensive device summary including device info, status, configuration, and recent telemetry
+
+    TDD Implementation: Device Data Summary API
+    Endpoint: GET /api/v1/devices/<device_id>/summary
+
+    Query Parameters:
+    - telemetry_limit: Number of recent telemetry records to include (default: 10, max: 100)
+    - include_config: Whether to include device configuration (default: true)
+    """
+    try:
+        # Get API key from headers
+        api_key = request.headers.get("X-API-Key")
+        if not api_key:
+            return (
+                jsonify({"error": "API key required", "message": "X-API-Key header is required"}),
+                401,
+            )
+
+        # Find device by API key
+        device = Device.query.filter_by(api_key=api_key).first()
+        if not device:
+            return (
+                jsonify({"error": "Invalid API key", "message": "Device not found"}),
+                401,
+            )
+
+        # Check if requested device exists
+        target_device = Device.query.get(device_id)
+        if not target_device:
+            return (
+                jsonify({"error": "Device not found", "message": f"Device with ID {device_id} does not exist"}),
+                404,
+            )
+
+        # Enforce access control - device can only access its own data
+        if device.id != device_id:
+            return (
+                jsonify({"error": "Access denied", "message": "You can only access your own device data"}),
+                403,
+            )
+
+        # Parse query parameters
+        telemetry_limit = min(int(request.args.get("telemetry_limit", 10)), 100)
+        include_config = request.args.get("include_config", "true").lower() in ("true", "1", "yes")
+
+        # 1. Get basic device information
+        device_info = {
+            "id": device.id,
+            "name": device.name,
+            "description": device.description,
+            "device_type": device.device_type,
+            "status": device.status,
+            "location": device.location,
+            "firmware_version": device.firmware_version,
+            "hardware_version": device.hardware_version,
+            "created_at": device.created_at.isoformat() if device.created_at else None,
+            "updated_at": device.updated_at.isoformat() if device.updated_at else None,
+        }
+
+        # 2. Get device status information
+        status_info = {
+            "is_online": is_device_online(device),
+            "last_seen": device.last_seen.isoformat() if device.last_seen else None,
+            "status": device.status,
+        }
+
+        # 3. Get recent telemetry data
+        telemetry_info = {
+            "recent_data": [],
+            "count": 0,
+            "iotdb_available": False,
+        }
+
+        try:
+            # Get recent telemetry from IoTDB
+            recent_telemetry = iotdb_service.get_device_telemetry(
+                device_id=str(device.id),
+                user_id=str(device.user_id) if device.user_id else None,
+                start_time="-24h",  # Last 24 hours
+                limit=telemetry_limit,
+            )
+
+            telemetry_info["recent_data"] = recent_telemetry or []
+            telemetry_info["count"] = len(recent_telemetry) if recent_telemetry else 0
+            telemetry_info["iotdb_available"] = iotdb_service.is_available()
+
+        except Exception as e:
+            current_app.logger.warning(f"Failed to get telemetry data for device {device.id}: {e}")
+            telemetry_info["iotdb_available"] = False
+
+        # 4. Get device configuration (if requested)
+        configuration_info = {}
+
+        if include_config:
+            try:
+                # Get all active configurations for the device
+                configs = DeviceConfiguration.query.filter_by(device_id=device.id, is_active=True).all()
+
+                for config in configs:
+                    # Convert value based on data type
+                    value = config.config_value
+                    if config.data_type == "integer":
+                        value = int(value) if value else 0
+                    elif config.data_type == "float":
+                        value = float(value) if value else 0.0
+                    elif config.data_type == "boolean":
+                        value = value.lower() in ("true", "1", "yes") if value else False
+                    elif config.data_type == "json":
+                        try:
+                            value = json.loads(value) if value else {}
+                        except json.JSONDecodeError:
+                            value = {}
+
+                    configuration_info[config.config_key] = {
+                        "value": value,
+                        "data_type": config.data_type,
+                        "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+                    }
+
+            except Exception as e:
+                current_app.logger.warning(f"Failed to get configuration for device {device.id}: {e}")
+
+        # 5. Build comprehensive response
+        summary_response = {
+            "device": device_info,
+            "status": status_info,
+            "telemetry": telemetry_info,
+            "configuration": configuration_info,
+            "summary_generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        current_app.logger.info(f"Device summary generated for device {device.name} (ID: {device.id})")
+
+        return jsonify(summary_response), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error generating device summary for ID {device_id}: {str(e)}")
+        return (
+            jsonify(
+                {"error": "Summary generation failed", "message": "An error occurred while generating device summary"}
+            ),
+            500,
+        )

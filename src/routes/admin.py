@@ -14,33 +14,146 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
 @admin_bp.route("/devices", methods=["GET"])
 @require_admin_token
 def list_all_devices():
-    """List all devices with basic information"""
+    """Enhanced admin endpoint to list all devices with complete information"""
     try:
-        # Get all devices with their basic info
-        devices = Device.query.all()
+        from src.models import User
+        from src.services.iotdb import IoTDBService
+        from sqlalchemy.orm import joinedload
+
+        # Parse query parameters
+        status_filter = request.args.get("status")
+        device_type_filter = request.args.get("device_type")
+        user_id_filter = request.args.get("user_id")
+        search_query = request.args.get("search")
+        page = int(request.args.get("page", 1))
+        per_page = min(int(request.args.get("per_page", 50)), 100)  # Max 100 per page
+
+        # Build query with filters
+        query = Device.query.options(joinedload(Device.owner))
+
+        # Apply filters
+        if status_filter:
+            query = query.filter(Device.status == status_filter)
+        if device_type_filter:
+            query = query.filter(Device.device_type == device_type_filter)
+        if user_id_filter:
+            query = query.filter(Device.user_id == int(user_id_filter))
+        if search_query:
+            search_pattern = f"%{search_query}%"
+            query = query.filter(
+                db.or_(
+                    Device.name.ilike(search_pattern),
+                    Device.description.ilike(search_pattern),
+                    Device.location.ilike(search_pattern),
+                )
+            )
+
+        # Get total count for pagination
+        total_devices = query.count()
+
+        # Apply pagination
+        devices = query.offset((page - 1) * per_page).limit(per_page).all()
+
+        # Initialize IoTDB service for telemetry stats
+        iotdb_service = IoTDBService()
+        iotdb_available = iotdb_service.is_available()
 
         device_list = []
+        device_type_counts = {}
+        status_counts = {}
+
         for device in devices:
+            # Get complete device information
             device_dict = device.to_dict()
-            # Hide API key in admin listing for security
-            device_dict.pop("api_key", None)
-            # Add basic stats
-            device_dict["auth_records_count"] = DeviceAuth.query.filter_by(device_id=device.id).count()
-            device_dict["config_count"] = DeviceConfiguration.query.filter_by(
-                device_id=device.id, is_active=True
-            ).count()
+
+            # Note: API key is intentionally excluded for security reasons
+            # Admin can see device details but not the actual API key
+
+            # Add owner information
+            if device.owner:
+                device_dict["owner"] = {
+                    "username": device.owner.username,
+                    "email": device.owner.email,
+                    "user_id": device.owner.user_id,
+                    "id": device.owner.id,
+                }
+            else:
+                device_dict["owner"] = None
+
+            # Add configurations
+            configurations = DeviceConfiguration.query.filter_by(device_id=device.id, is_active=True).all()
+            config_list = []
+            for config in configurations:
+                config_list.append(
+                    {
+                        "id": config.id,
+                        "config_key": config.config_key,
+                        "config_value": config.config_value,
+                        "data_type": config.data_type,
+                        "created_at": config.created_at.isoformat() if config.created_at else None,
+                        "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+                    }
+                )
+            device_dict["configurations"] = config_list
+
+            # Add auth records
+            auth_records = DeviceAuth.query.filter_by(device_id=device.id).all()
+            auth_list = []
+            for auth in auth_records:
+                auth_list.append(
+                    {
+                        "id": auth.id,
+                        "api_key_hash": auth.api_key_hash,
+                        "is_active": auth.is_active,
+                        "expires_at": auth.expires_at.isoformat() if auth.expires_at else None,
+                        "created_at": auth.created_at.isoformat() if auth.created_at else None,
+                        "last_used": auth.last_used.isoformat() if auth.last_used else None,
+                        "usage_count": auth.usage_count,
+                    }
+                )
+            device_dict["auth_records"] = auth_list
+
+            # Add telemetry statistics
+            telemetry_stats = {"iotdb_available": iotdb_available, "total_records": 0}
+
+            if iotdb_available:
+                try:
+                    telemetry_count = iotdb_service.get_telemetry_count(
+                        device_id=str(device.id), start_time="-30d"  # Last 30 days
+                    )
+                    telemetry_stats["total_records"] = telemetry_count
+                except Exception as e:
+                    current_app.logger.warning(f"Failed to get telemetry count for device {device.id}: {e}")
+
+            device_dict["telemetry_stats"] = telemetry_stats
+
+            # Count device types and statuses for statistics
+            device_type_counts[device.device_type] = device_type_counts.get(device.device_type, 0) + 1
+            status_counts[device.status] = status_counts.get(device.status, 0) + 1
+
             device_list.append(device_dict)
 
-        return (
-            jsonify(
-                {
-                    "status": "success",
-                    "total_devices": len(device_list),
-                    "devices": device_list,
-                }
-            ),
-            200,
-        )
+        # Calculate pagination info
+        total_pages = (total_devices + per_page - 1) // per_page
+
+        # Get additional statistics
+        total_users_with_devices = db.session.query(Device.user_id).distinct().count()
+
+        # Build response
+        response = {
+            "status": "success",
+            "devices": device_list,
+            "total_devices": total_devices,
+            "pagination": {"page": page, "per_page": per_page, "total": total_devices, "pages": total_pages},
+            "metadata": {
+                "device_types": device_type_counts,
+                "status_counts": status_counts,
+                "users_with_devices": total_users_with_devices,
+                "iotdb_available": iotdb_available,
+            },
+        }
+
+        return jsonify(response), 200
 
     except Exception as e:
         current_app.logger.error(f"Error listing devices: {str(e)}")
@@ -59,44 +172,95 @@ def list_all_devices():
 @require_admin_token
 def get_device_details(device_id):
     """Get detailed device information including auth and config"""
-    device = Device.query.get_or_404(device_id)
+    from src.models import User
+    from src.services.iotdb import IoTDBService
+    from sqlalchemy.orm import joinedload
+
+    device = Device.query.options(joinedload(Device.owner)).get_or_404(device_id)
 
     try:
+        # Get complete device information
+        device_dict = device.to_dict()
+
+        # Note: API key is intentionally excluded for security reasons
+        # Admin can see device details but not the actual API key
+
+        # Add owner information
+        if device.owner:
+            device_dict["owner"] = {
+                "username": device.owner.username,
+                "email": device.owner.email,
+                "user_id": device.owner.user_id,
+                "id": device.owner.id,
+            }
+        else:
+            device_dict["owner"] = None
+
         # Get device auth records
-        auth_records = DeviceAuth.query.filter_by(device_id=device_id).all()
-        auth_list = []
-        for auth in auth_records:
+        auth_records_query = DeviceAuth.query.filter_by(device_id=device_id).all()
+        auth_records = []
+        for auth in auth_records_query:
             auth_dict = {
                 "id": auth.id,
+                "api_key_hash": auth.api_key_hash,
                 "is_active": auth.is_active,
                 "expires_at": auth.expires_at.isoformat() if auth.expires_at else None,
                 "created_at": auth.created_at.isoformat() if auth.created_at else None,
                 "last_used": auth.last_used.isoformat() if auth.last_used else None,
                 "usage_count": auth.usage_count,
             }
-            auth_list.append(auth_dict)
+            auth_records.append(auth_dict)
 
         # Get device configurations
-        configs = DeviceConfiguration.query.filter_by(device_id=device_id, is_active=True).all()
-        config_dict = {}
-        for config in configs:
-            config_dict[config.config_key] = {
-                "value": config.config_value,
-                "data_type": config.data_type,
-                "updated_at": (config.updated_at.isoformat() if config.updated_at else None),
-            }
+        configurations_query = DeviceConfiguration.query.filter_by(device_id=device_id, is_active=True).all()
+        configurations = []
+        for config in configurations_query:
+            configurations.append(
+                {
+                    "id": config.id,
+                    "config_key": config.config_key,
+                    "config_value": config.config_value,
+                    "data_type": config.data_type,
+                    "created_at": config.created_at.isoformat() if config.created_at else None,
+                    "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+                }
+            )
 
-        device_dict = device.to_dict()
-        # Hide API key for security
-        device_dict.pop("api_key", None)
+        # Add telemetry statistics
+        iotdb_service = IoTDBService()
+        iotdb_available = iotdb_service.is_available()
+
+        telemetry_stats = {
+            "iotdb_available": iotdb_available,
+            "total_records": 0,
+            "last_30_days": 0,
+            "last_7_days": 0,
+            "last_24_hours": 0,
+        }
+
+        if iotdb_available:
+            try:
+                telemetry_stats["total_records"] = iotdb_service.get_telemetry_count(device_id=str(device_id))
+                telemetry_stats["last_30_days"] = iotdb_service.get_telemetry_count(
+                    device_id=str(device_id), start_time="-30d"
+                )
+                telemetry_stats["last_7_days"] = iotdb_service.get_telemetry_count(
+                    device_id=str(device_id), start_time="-7d"
+                )
+                telemetry_stats["last_24_hours"] = iotdb_service.get_telemetry_count(
+                    device_id=str(device_id), start_time="-24h"
+                )
+            except Exception as e:
+                current_app.logger.warning(f"Failed to get telemetry stats for device {device_id}: {e}")
 
         return (
             jsonify(
                 {
                     "status": "success",
                     "device": device_dict,
-                    "auth_records": auth_list,
-                    "configurations": config_dict,
+                    "auth_records": auth_records,
+                    "configurations": configurations,
+                    "telemetry_stats": telemetry_stats,
                 }
             ),
             200,
