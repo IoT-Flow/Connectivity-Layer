@@ -29,6 +29,19 @@ SYSTEM_DISK_TOTAL = Gauge("system_disk_total_bytes", "Total disk space in bytes"
 
 SYSTEM_DISK_USED = Gauge("system_disk_used_bytes", "Used disk space in bytes", ["path"])
 
+# Disk I/O Metrics
+SYSTEM_DISK_IO_READ_BYTES = Counter("system_disk_io_read_bytes_total", "Total disk I/O bytes read", ["device"])
+
+SYSTEM_DISK_IO_WRITE_BYTES = Counter("system_disk_io_write_bytes_total", "Total disk I/O bytes written", ["device"])
+
+SYSTEM_DISK_IO_READ_RATE = Gauge(
+    "system_disk_io_read_rate_bytes_per_second", "Current disk read rate in bytes per second", ["device"]
+)
+
+SYSTEM_DISK_IO_WRITE_RATE = Gauge(
+    "system_disk_io_write_rate_bytes_per_second", "Current disk write rate in bytes per second", ["device"]
+)
+
 # Network Metrics
 SYSTEM_NETWORK_BYTES_SENT = Counter("system_network_bytes_sent_total", "Total network bytes sent")
 
@@ -124,6 +137,16 @@ IOTFLOW_TELEMETRY_MESSAGES = Counter("iotflow_telemetry_messages_total", "Total 
 IOTFLOW_CONTROL_COMMANDS = Counter(
     "iotflow_control_commands_total", "Total control commands sent", ["status"]  # pending, completed, failed
 )
+
+# =============================================================================
+# 7. IOTDB METRICS
+# =============================================================================
+
+IOTDB_CONNECTION_STATUS = Gauge("iotdb_connection_status", "IoTDB connection status (1=connected, 0=disconnected)")
+
+IOTDB_QUERY_SUCCESS_RATE = Gauge("iotdb_query_success_rate", "IoTDB query success rate percentage")
+
+IOTDB_WRITE_SUCCESS_RATE = Gauge("iotdb_write_success_rate", "IoTDB write success rate percentage")
 
 # =============================================================================
 # 6. HTTP REQUEST METRICS

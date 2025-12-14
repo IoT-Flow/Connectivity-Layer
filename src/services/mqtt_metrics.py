@@ -218,3 +218,7 @@ class MQTTMetricsCollector:
             MQTT_MESSAGES_DROPPED.inc()
         except Exception as e:
             logger.error(f"Error incrementing MQTT dropped metrics: {e}")
+
+    def collect_mqtt_status(self):
+        """Alias for collect_connection_metrics for test compatibility."""
+        self.collect_connection_metrics()

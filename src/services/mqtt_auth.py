@@ -10,6 +10,7 @@ from typing import Optional, Dict
 
 from ..models import Device
 from ..services.iotdb import IoTDBService
+from ..services.device_status_tracker import DeviceStatusTracker
 from ..utils.time_util import (
     TimestampFormatter,
     parse_device_timestamp,
@@ -22,10 +23,16 @@ logger = logging.getLogger(__name__)
 class MQTTAuthService:
     """Service for handling server-side MQTT device authentication and authorization"""
 
-    def __init__(self, iotdb_service: Optional[IoTDBService] = None, app=None):
+    def __init__(
+        self,
+        iotdb_service: Optional[IoTDBService] = None,
+        app=None,
+        status_tracker: Optional[DeviceStatusTracker] = None,
+    ):
         self.iotdb_service = iotdb_service or IoTDBService()
         self.authenticated_devices = {}  # Cache for authenticated devices
         self.app = app  # Flask app instance for context
+        self.status_tracker = status_tracker  # Device status tracker for online/offline monitoring
 
     def authenticate_device_by_api_key(self, api_key: str) -> Optional[Device]:
         """
@@ -248,13 +255,19 @@ class MQTTAuthService:
                     user_id=device.user_id,
                 )
 
-                if success:  # Update device last seen and also update Redis cache
+                if success:
+                    # Update device last seen in database
                     device.update_last_seen()
 
-                # Update device status in Redis cache directly if available
-                if hasattr(self.app, "device_status_cache") and self.app.device_status_cache:
-                    self.app.device_status_cache.update_device_last_seen(device_id)
-                    self.app.device_status_cache.set_device_status(device_id, "online")
+                    # Update device status using the new status tracker
+                    if self.status_tracker:
+                        self.status_tracker.update_device_activity(device_id)
+                        logger.debug(f"Updated device {device_id} status to online via status tracker")
+
+                    # Also update device status in Redis cache directly if available (backwards compatibility)
+                    if hasattr(self.app, "device_status_cache") and self.app.device_status_cache:
+                        self.app.device_status_cache.update_device_last_seen(device_id)
+                        self.app.device_status_cache.set_device_status(device_id, "online")
 
                     logger.info(
                         "Telemetry stored in IoTDB for device %s (ID: %d)",

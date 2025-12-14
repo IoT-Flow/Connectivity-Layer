@@ -15,6 +15,7 @@ from src.routes.control import control_bp
 from src.utils.logging import setup_logging
 from src.middleware.monitoring import HealthMonitor
 from src.middleware.security import comprehensive_error_handler, security_headers_middleware
+from src.middleware.auth import require_admin_token
 from src.mqtt.client import create_mqtt_service
 from src.services.mqtt_auth import MQTTAuthService
 from src.services.device_status_cache import DeviceStatusCache
@@ -41,7 +42,7 @@ def create_app(config_name=None):
     CORS(app, 
          origins=allowed_origins,
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization", "X-API-Key"],
+         allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-User-ID"],
          expose_headers=["X-Request-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"]
     )
 
@@ -172,10 +173,30 @@ def create_app(config_name=None):
             'documentation': 'See README.md for API documentation'
         }), 200
     
-    # Prometheus metrics endpoint
+    # Prometheus metrics endpoint (admin only)
     @app.route('/metrics')
+    @require_admin_token
     def metrics():
-        """Prometheus metrics endpoint"""
+        """Prometheus metrics endpoint (admin authentication required)"""
+        # Collect fresh metrics before returning
+        from src.services.system_metrics import SystemMetricsCollector
+        from src.services.redis_metrics import RedisMetricsCollector
+        from src.services.mqtt_metrics import MQTTMetricsCollector
+        from src.services.iotdb_metrics import IoTDBMetricsCollector
+        
+        # Collect all service metrics
+        system_collector = SystemMetricsCollector()
+        system_collector.collect_all_metrics()
+        
+        redis_collector = RedisMetricsCollector()
+        redis_collector.collect_all_metrics()
+        
+        mqtt_collector = MQTTMetricsCollector()
+        mqtt_collector.collect_all_metrics()
+        
+        iotdb_collector = IoTDBMetricsCollector()
+        iotdb_collector.collect_all_metrics()
+        
         return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
     # Error handlers

@@ -276,7 +276,7 @@ class TestMQTTMetricsCollector:
 class TestRedisMetricsCollector:
     """Test Redis metrics collection."""
 
-    @patch("src.utils.redis_util.get_redis_util")
+    @patch("src.services.redis_metrics.get_redis_util")
     def test_collect_redis_status_metrics(self, mock_get_redis_util):
         """Test Redis status metrics collection."""
         from src.services.redis_metrics import RedisMetricsCollector
@@ -299,7 +299,7 @@ class TestRedisMetricsCollector:
         mock_redis_client.ping.assert_called_once()
         mock_redis_client.info.assert_called_once()
 
-    @patch("src.utils.redis_util.get_redis_util")
+    @patch("src.services.redis_metrics.get_redis_util")
     def test_collect_redis_metrics_when_unavailable(self, mock_get_redis_util):
         """Test Redis metrics when Redis is unavailable."""
         from src.services.redis_metrics import RedisMetricsCollector

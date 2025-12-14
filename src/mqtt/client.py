@@ -396,6 +396,21 @@ class MQTTClientService:
         self._stop_event = threading.Event()
         self.app = app
 
+        # Statistics tracking
+        self.stats = {
+            "messages_sent": 0,
+            "messages_received": 0,
+            "bytes_sent": 0,
+            "bytes_received": 0,
+            "connection_count": 0,
+            "last_message_time": None,
+            "uptime_start": time.time(),
+            "topics": set(),
+            "active_subscriptions": {},
+            "failed_messages": 0,
+            "reconnection_count": 0,
+        }
+
         # Initialize authentication service
         self.auth_service = auth_service or MQTTAuthService()
 
@@ -538,6 +553,7 @@ class MQTTClientService:
         """
         if not self.connected:
             self.logger.warning("Cannot publish: not connected to MQTT broker")
+            self.stats["failed_messages"] += 1
             return False
 
         try:
@@ -548,17 +564,28 @@ class MQTTClientService:
             if isinstance(payload, (dict, list)):
                 payload = json.dumps(payload)
 
+            # Calculate message size
+            message_size = len(str(payload).encode("utf-8"))
+
             # Publish message
             result = self.client.publish(topic, payload, qos=qos, retain=retain)
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                # Update statistics
+                self.stats["messages_sent"] += 1
+                self.stats["bytes_sent"] += message_size
+                self.stats["last_message_time"] = time.time()
+                self.stats["topics"].add(topic)
+
                 self.logger.debug(f"Published to {topic}: {payload}")
                 return True
             else:
+                self.stats["failed_messages"] += 1
                 self.logger.error(f"Failed to publish to {topic}: {mqtt.error_string(result.rc)}")
                 return False
 
         except Exception as e:
+            self.stats["failed_messages"] += 1
             self.logger.error(f"Error publishing message: {e}")
             return False
 
@@ -586,11 +613,21 @@ class MQTTClientService:
             if result[0] == mqtt.MQTT_ERR_SUCCESS:
                 self.logger.info(f"Subscribed to {topic} with QoS {qos}")
 
+                # Update subscription statistics
+                self.stats["active_subscriptions"][topic] = {
+                    "qos": qos,
+                    "subscribed_at": time.time(),
+                    "callback_count": 0,
+                }
+
                 # Register callback if provided
                 if callback:
                     if topic not in self.subscription_callbacks:
                         self.subscription_callbacks[topic] = []
                     self.subscription_callbacks[topic].append(callback)
+                    self.stats["active_subscriptions"][topic]["callback_count"] = len(
+                        self.subscription_callbacks[topic]
+                    )
 
                 return True
             else:
@@ -649,6 +686,7 @@ class MQTTClientService:
         """Callback for successful connection"""
         if rc == 0:
             self.connected = True
+            self.stats["connection_count"] += 1
             self.logger.info("Successfully connected to MQTT broker")
 
             # Subscribe to system topics
@@ -677,6 +715,13 @@ class MQTTClientService:
     def _on_message(self, client, userdata, msg):
         """Callback for received messages"""
         try:
+            # Update statistics
+            message_size = len(msg.payload) if msg.payload else 0
+            self.stats["messages_received"] += 1
+            self.stats["bytes_received"] += message_size
+            self.stats["last_message_time"] = time.time()
+            self.stats["topics"].add(msg.topic)
+
             # Create MQTT message object
             message = MQTTMessage(
                 topic=msg.topic,
@@ -768,6 +813,7 @@ class MQTTClientService:
             retries = 0
             while retries < self.config.max_retries and not self.connected:
                 try:
+                    self.stats["reconnection_count"] += 1
                     self.logger.info(f"Attempting to reconnect ({retries + 1}/{self.config.max_retries})")
                     if self.connect():
                         break
@@ -785,7 +831,13 @@ class MQTTClientService:
         thread.start()
 
     def get_connection_status(self) -> Dict[str, Any]:
-        """Get current connection status and statistics"""
+        """Get current connection status and comprehensive statistics"""
+        current_time = time.time()
+        uptime_seconds = current_time - self.stats["uptime_start"]
+
+        # Calculate topic structure statistics
+        topic_structure = self._analyze_topic_structure()
+
         return {
             "connected": self.connected,
             "host": self.config.host,
@@ -794,7 +846,88 @@ class MQTTClientService:
             "use_tls": self.config.use_tls,
             "handlers_count": len(self.message_handlers),
             "subscriptions_count": len(self.subscription_callbacks),
+            # Message Statistics
+            "messages": {
+                "sent": self.stats["messages_sent"],
+                "received": self.stats["messages_received"],
+                "failed": self.stats["failed_messages"],
+                "last_message_time": self.stats["last_message_time"],
+            },
+            # Data Transfer Statistics
+            "data_transfer": {
+                "bytes_sent": self.stats["bytes_sent"],
+                "bytes_received": self.stats["bytes_received"],
+                "total_bytes": self.stats["bytes_sent"] + self.stats["bytes_received"],
+            },
+            # Connection Statistics
+            "connections": {
+                "active_connections": 1 if self.connected else 0,
+                "total_connections": self.stats["connection_count"],
+                "reconnections": self.stats["reconnection_count"],
+                "uptime_seconds": uptime_seconds,
+            },
+            # Topic Structure
+            "topics": {
+                "total_topics": len(self.stats["topics"]),
+                "unique_topics": list(self.stats["topics"]),
+                "topic_structure": topic_structure,
+                "active_subscriptions": len(self.stats["active_subscriptions"]),
+                "subscription_details": dict(self.stats["active_subscriptions"]),
+            },
+            # Performance Metrics
+            "performance": {
+                "messages_per_second": self._calculate_message_rate(),
+                "bytes_per_second": self._calculate_data_rate(),
+                "average_message_size": self._calculate_average_message_size(),
+            },
         }
+
+    def _analyze_topic_structure(self) -> Dict[str, Any]:
+        """Analyze the structure of MQTT topics"""
+        structure = {"levels": {}, "patterns": [], "device_topics": 0, "system_topics": 0}
+
+        for topic in self.stats["topics"]:
+            parts = topic.split("/")
+            level_count = len(parts)
+
+            if level_count not in structure["levels"]:
+                structure["levels"][level_count] = 0
+            structure["levels"][level_count] += 1
+
+            # Categorize topics
+            if "devices" in topic:
+                structure["device_topics"] += 1
+            elif "system" in topic or "admin" in topic:
+                structure["system_topics"] += 1
+
+            # Extract common patterns
+            pattern = "/".join(["*" if part.isdigit() else part for part in parts])
+            if pattern not in structure["patterns"]:
+                structure["patterns"].append(pattern)
+
+        return structure
+
+    def _calculate_message_rate(self) -> float:
+        """Calculate messages per second"""
+        uptime = time.time() - self.stats["uptime_start"]
+        if uptime > 0:
+            return round((self.stats["messages_sent"] + self.stats["messages_received"]) / uptime, 2)
+        return 0.0
+
+    def _calculate_data_rate(self) -> float:
+        """Calculate bytes per second"""
+        uptime = time.time() - self.stats["uptime_start"]
+        if uptime > 0:
+            return round((self.stats["bytes_sent"] + self.stats["bytes_received"]) / uptime, 2)
+        return 0.0
+
+    def _calculate_average_message_size(self) -> float:
+        """Calculate average message size in bytes"""
+        total_messages = self.stats["messages_sent"] + self.stats["messages_received"]
+        total_bytes = self.stats["bytes_sent"] + self.stats["bytes_received"]
+        if total_messages > 0:
+            return round(total_bytes / total_messages, 2)
+        return 0.0
 
 
 # Factory function to create MQTT client service

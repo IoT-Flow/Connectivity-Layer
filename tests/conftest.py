@@ -64,13 +64,38 @@ def app():
     @app.route("/metrics", methods=["GET"])
     def metrics():
         from flask import Response
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+        from src.services.system_metrics import SystemMetricsCollector
+        from src.services.redis_metrics import RedisMetricsCollector
+        from src.services.mqtt_metrics import MQTTMetricsCollector
+        from src.services.iotdb_metrics import IoTDBMetricsCollector
 
-        # Return simple Prometheus-format metrics
-        metrics_data = """# HELP http_requests_total Total HTTP requests
-# TYPE http_requests_total counter
-http_requests_total 100
-"""
-        return Response(metrics_data, mimetype="text/plain; version=0.0.4")
+        # Collect fresh metrics before returning
+        try:
+            system_collector = SystemMetricsCollector()
+            system_collector.collect_all_metrics()
+        except Exception:
+            pass  # Ignore errors in test environment
+
+        try:
+            redis_collector = RedisMetricsCollector()
+            redis_collector.collect_all_metrics()
+        except Exception:
+            pass  # Ignore errors in test environment
+
+        try:
+            mqtt_collector = MQTTMetricsCollector()
+            mqtt_collector.collect_all_metrics()
+        except Exception:
+            pass  # Ignore errors in test environment
+
+        try:
+            iotdb_collector = IoTDBMetricsCollector()
+            iotdb_collector.collect_all_metrics()
+        except Exception:
+            pass  # Ignore errors in test environment
+
+        return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
     # Add root endpoint for testing
     @app.route("/", methods=["GET"])

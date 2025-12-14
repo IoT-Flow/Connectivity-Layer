@@ -248,3 +248,7 @@ class RedisMetricsCollector:
             REDIS_CACHE_MISSES.inc()
         except Exception as e:
             logger.error(f"Error incrementing Redis cache miss: {e}")
+
+    def collect_redis_status(self):
+        """Alias for collect_status_metrics for test compatibility."""
+        self.collect_status_metrics()
