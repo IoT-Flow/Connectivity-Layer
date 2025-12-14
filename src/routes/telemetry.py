@@ -92,6 +92,11 @@ def store_telemetry():
             # Update device last_seen
             device.update_last_seen()
 
+            # Mark device as online in Redis (refreshes 60s TTL)
+            if hasattr(current_app, "status_tracker") and current_app.status_tracker:
+                current_app.status_tracker.update_device_activity(device.id)
+                current_app.logger.debug(f"Device {device.id} marked online in Redis")
+
             current_app.logger.info(f"Telemetry stored for device {device.name} (ID: {device.id})")
 
             return (

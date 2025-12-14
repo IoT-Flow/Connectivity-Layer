@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 # Redis key prefixes
 DEVICE_STATUS_PREFIX = "device:status:"
 DEVICE_LASTSEEN_PREFIX = "device:lastseen:"
-DEVICE_CACHE_TTL = 60 * 60 * 24  # 24 hours
+DEVICE_CACHE_TTL = 60 * 60 * 24  # 24 hours for last_seen
+DEVICE_STATUS_TTL = 60  # 60 seconds for online status (auto-expires to offline)
 
 
 class DeviceStatusTracker:
@@ -67,13 +68,14 @@ class DeviceStatusTracker:
             current_time = datetime.now(timezone.utc)
             timestamp_str = current_time.isoformat()
 
-            # Update last_seen timestamp in Redis
+            # Update last_seen timestamp in Redis (long TTL for history)
             lastseen_key = f"{DEVICE_LASTSEEN_PREFIX}{device_id}"
             self.redis.set(lastseen_key, timestamp_str, ex=DEVICE_CACHE_TTL)
 
-            # Update status to online in Redis
+            # Update status to online in Redis with 60s TTL
+            # Key auto-expires after 60s of no telemetry, making device "offline"
             status_key = f"{DEVICE_STATUS_PREFIX}{device_id}"
-            self.redis.set(status_key, "online", ex=DEVICE_CACHE_TTL)
+            self.redis.set(status_key, "online", ex=DEVICE_STATUS_TTL)
 
             logger.debug(f"Device {device_id} marked as online")
 
@@ -90,7 +92,8 @@ class DeviceStatusTracker:
 
     def is_device_online(self, device_id: int) -> bool:
         """
-        Check if a device is currently online based on last_seen timestamp.
+        Check if a device is currently online.
+        Device is online if last_seen timestamp is within timeout period.
 
         Args:
             device_id: The device ID
@@ -102,20 +105,22 @@ class DeviceStatusTracker:
             return False
 
         try:
+            # Check last_seen timestamp
             lastseen_key = f"{DEVICE_LASTSEEN_PREFIX}{device_id}"
-            timestamp_bytes = self.redis.get(lastseen_key)
+            last_seen_raw = self.redis.get(lastseen_key)
 
-            if not timestamp_bytes:
+            if not last_seen_raw:
+                # No last_seen means device has never been seen
                 return False
 
-            timestamp_str = timestamp_bytes.decode() if isinstance(timestamp_bytes, bytes) else timestamp_bytes
-            last_seen = datetime.fromisoformat(timestamp_str)
+            # Parse the timestamp
+            last_seen_str = last_seen_raw.decode() if isinstance(last_seen_raw, bytes) else last_seen_raw
+            last_seen = datetime.fromisoformat(last_seen_str)
 
-            # Calculate time since last activity
+            # Check if within timeout period
             current_time = datetime.now(timezone.utc)
             time_diff = (current_time - last_seen).total_seconds()
 
-            # Device is online if last activity was within timeout period
             return time_diff <= self.timeout_seconds
 
         except Exception as e:

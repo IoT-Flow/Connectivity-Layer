@@ -55,16 +55,16 @@ services:
       retries: 3
 
   # Prometheus service for metrics collection
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: iotflow_prometheus
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    ports:
-      - "9090:9090"
-    volumes:
-      - /home/chameau/prometheus:/etc/prometheus
-    restart: unless-stopped
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: iotflow_prometheus
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - /home/chameau/prometheus:/etc/prometheus
+  #   restart: unless-stopped
 
   # mqtt_exporter:
   #   image: kpetrem/mqtt-exporter:master
@@ -95,39 +95,39 @@ services:
 
 
   # Grafana dashboard for visualization
-  grafana:
-    image: grafana/grafana:latest
-    container_name: iotflow_grafana
-    ports:
-      - "3333:3000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
-    depends_on:
-      - prometheus
-    restart: unless-stopped
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: iotflow_grafana
+  #   ports:
+  #     - "3333:3000"
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #     - ./grafana/provisioning:/etc/grafana/provisioning
+  #   depends_on:
+  #     - prometheus
+  #   restart: unless-stopped
 
   # Node Exporter for host metrics (CPU, memory, disk)
-  node_exporter:
-    image: prom/node-exporter:latest
-    container_name: iotflow_node_exporter
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - "--path.procfs=/host/proc"
-      - "--path.sysfs=/host/sys"
-      - "--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($|/)"
+  # node_exporter:
+  #   image: prom/node-exporter:latest
+  #   container_name: iotflow_node_exporter
+  #   volumes:
+  #     - /proc:/host/proc:ro
+  #     - /sys:/host/sys:ro
+  #     - /:/rootfs:ro
+  #   command:
+  #     - "--path.procfs=/host/proc"
+  #     - "--path.sysfs=/host/sys"
+  #     - "--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($|/)"
       
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
 
-    ports:
-      - "9100:9100"
-    restart: unless-stopped
+  #   ports:
+  #     - "9100:9100"
+  #   restart: unless-stopped
 
   # IoTFlow Connectivity Layer application
   # iot_connectivity:
@@ -177,7 +177,8 @@ volumes:
     driver: local
   mosquitto_data:
     driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
+  # prometheus_data:
+  #   driver: local
+  # grafana_data:
+  #   driver: local
+  
