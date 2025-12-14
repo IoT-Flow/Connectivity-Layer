@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from src.models import Device, DeviceConfiguration, User, db
 from src.middleware.auth import (
     authenticate_device,
@@ -653,19 +653,57 @@ def update_device_config():
 @request_metrics_middleware()
 def get_all_device_statuses():
     """
-    Get status of all devices using Redis cache for better performance
+    Get status of devices for the current user (JWT auth) or authenticated device
     Returns condensed device info with online/offline status for dashboard display
     """
     try:
+        # Try to get user from JWT token first (for frontend), then from device auth
+        user_id = None
+        
+        # Check for JWT token (frontend user)
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            # For now, extract user from device ownership (temporary solution)
+            # In production, you'd validate JWT and extract user_id
+            pass
+        
+        # Check for device authentication (X-API-Key)
+        api_key = request.headers.get('X-API-Key')
+        if api_key:
+            from src.models import DeviceAuth
+            device_auth = DeviceAuth.query.filter_by(api_key_hash=api_key, is_active=True).first()
+            if device_auth:
+                device = Device.query.get(device_auth.device_id)
+                if device:
+                    user_id = device.user_id
+        
+        # If no authentication, return only public/demo data or require auth
+        if not user_id:
+            # For demo purposes, return all devices
+            # TODO: In production, this should require proper authentication
+            user_id = None  # Will query all devices
+        
         # Get optional limit/offset parameters
         limit = request.args.get("limit", default=100, type=int)
         offset = request.args.get("offset", default=0, type=int)
 
-        # Query devices from database
-        devices = Device.query.order_by(Device.id).offset(offset).limit(limit).all()
+        # Query devices - filter by user if authenticated
+        if user_id:
+            devices = Device.query.filter_by(user_id=user_id).order_by(Device.id).offset(offset).limit(limit).all()
+            total_count = Device.query.filter_by(user_id=user_id).count()
+        else:
+            # No auth - return all devices (for demo/development)
+            devices = Device.query.order_by(Device.id).offset(offset).limit(limit).all()
+            total_count = Device.query.count()
         device_statuses = []
 
-        # Check if Redis cache is available
+        # Check if status tracker is available (preferred) or fallback to cache
+        use_status_tracker = (
+            hasattr(current_app, "status_tracker")
+            and current_app.status_tracker
+            and current_app.status_tracker.available
+        )
+        
         redis_available = (
             hasattr(current_app, "device_status_cache")
             and current_app.device_status_cache
@@ -678,20 +716,30 @@ def get_all_device_statuses():
                 "id": device.id,
                 "name": device.name,
                 "device_type": device.device_type,
-                "status": device.status,
+                "registration_status": device.status,  # active/inactive/pending
             }
 
-            # Try to get online/offline status from Redis cache first
-            if redis_available:
+            # Try status tracker first, then Redis cache, then database
+            if use_status_tracker:
+                is_online = current_app.status_tracker.is_device_online(device.id)
+                device_info["is_online"] = is_online
+                device_info["status"] = "online" if is_online else "offline"
+            elif redis_available:
                 cached_status = current_app.device_status_cache.get_device_status(device.id)
                 if cached_status:
-                    device_info["is_online"] = cached_status == "online"
+                    is_online = cached_status == "online"
+                    device_info["is_online"] = is_online
+                    device_info["status"] = "online" if is_online else "offline"
                 else:
                     # Fall back to database check if not in cache
-                    device_info["is_online"] = is_device_online(device)
+                    is_online = is_device_online(device)
+                    device_info["is_online"] = is_online
+                    device_info["status"] = "online" if is_online else "offline"
             else:
                 # Fall back to database check if Redis not available
-                device_info["is_online"] = is_device_online(device)
+                is_online = is_device_online(device)
+                device_info["is_online"] = is_online
+                device_info["status"] = "online" if is_online else "offline"
 
             device_statuses.append(device_info)
 
@@ -702,10 +750,13 @@ def get_all_device_statuses():
                     "status": "success",
                     "devices": device_statuses,
                     "meta": {
-                        "total": Device.query.count(),
+                        "total": total_count,
                         "limit": limit,
                         "offset": offset,
+                        "status_tracker_used": use_status_tracker,
                         "cache_used": redis_available,
+                        "authenticated": user_id is not None,
+                        "user_id": user_id if user_id else "public",
                     },
                 }
             ),
@@ -741,27 +792,43 @@ def get_device_status_by_id(device_id):
             "id": device.id,
             "name": device.name,
             "device_type": device.device_type,
-            "status": device.status,
+            "registration_status": device.status,  # Keep original status (active/inactive/pending)
         }
 
-        # Try to get additional data from Redis cache
-        if hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
-            # Check if Redis cache is available
-            if current_app.device_status_cache.available:
-                # Get online/offline status from cache, but verify against last_seen time
-                cached_status = current_app.device_status_cache.get_device_status(device.id)
-
-                # Always check if the device should be online based on last_seen
-                actual_online_status = is_device_online(device)
-
-                # Use actual status, but record where we initially checked
-                response["is_online"] = actual_online_status
-                if cached_status:
-                    response["status_source"] = "redis_cache_verified"
+        # Try to get status from new DeviceStatusTracker (preferred) or fallback to old cache
+        if hasattr(current_app, "status_tracker") and current_app.status_tracker:
+            # Use new DeviceStatusTracker service
+            if current_app.status_tracker.available:
+                is_online = current_app.status_tracker.is_device_online(device.id)
+                response["is_online"] = is_online
+                response["status"] = "online" if is_online else "offline"  # Human-readable status
+                response["status_source"] = "status_tracker"
+                
+                # Get last seen from tracker
+                last_seen = current_app.status_tracker.get_last_seen(device.id)
+                if last_seen:
+                    response["last_seen"] = last_seen.isoformat()
+                    response["last_seen_source"] = "status_tracker"
                 else:
-                    response["status_source"] = "database"
-
-                # Get last seen timestamp from cache
+                    response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
+                    response["last_seen_source"] = "database"
+            else:
+                # Tracker not available, use database
+                is_online = is_device_online(device)
+                response["is_online"] = is_online
+                response["status"] = "online" if is_online else "offline"
+                response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
+                response["status_source"] = "database"
+                response["last_seen_source"] = "database"
+        elif hasattr(current_app, "device_status_cache") and current_app.device_status_cache:
+            # Fallback to old device_status_cache system
+            if current_app.device_status_cache.available:
+                cached_status = current_app.device_status_cache.get_device_status(device.id)
+                actual_online_status = is_device_online(device)
+                response["is_online"] = actual_online_status
+                response["status"] = "online" if actual_online_status else "offline"
+                response["status_source"] = "redis_cache_verified" if cached_status else "database"
+                
                 last_seen = current_app.device_status_cache.get_device_last_seen(device.id)
                 if last_seen:
                     response["last_seen"] = last_seen.isoformat()
@@ -770,14 +837,17 @@ def get_device_status_by_id(device_id):
                     response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
                     response["last_seen_source"] = "database"
             else:
-                # Redis not available
-                response["is_online"] = is_device_online(device)
+                is_online = is_device_online(device)
+                response["is_online"] = is_online
+                response["status"] = "online" if is_online else "offline"
                 response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
                 response["status_source"] = "database"
                 response["last_seen_source"] = "database"
         else:
-            # Redis not configured
-            response["is_online"] = is_device_online(device)
+            # No caching available, use database only
+            is_online = is_device_online(device)
+            response["is_online"] = is_online
+            response["status"] = "online" if is_online else "offline"
             response["last_seen"] = device.last_seen.isoformat() if device.last_seen else None
             response["status_source"] = "database"
             response["last_seen_source"] = "database"

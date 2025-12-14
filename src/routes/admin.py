@@ -66,6 +66,17 @@ def list_all_devices():
             # Get complete device information
             device_dict = device.to_dict()
 
+            # Add online/offline status from status tracker
+            if hasattr(current_app, "status_tracker") and current_app.status_tracker and current_app.status_tracker.available:
+                is_online = current_app.status_tracker.is_device_online(device.id)
+                device_dict["is_online"] = is_online
+                device_dict["status"] = "online" if is_online else "offline"
+                device_dict["registration_status"] = device.status  # Keep original status
+            else:
+                # Fallback to database status
+                device_dict["registration_status"] = device.status
+                device_dict["status"] = device.status
+
             # Note: API key is intentionally excluded for security reasons
             # Admin can see device details but not the actual API key
 

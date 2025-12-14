@@ -19,6 +19,7 @@ from src.middleware.auth import require_admin_token
 from src.mqtt.client import create_mqtt_service
 from src.services.mqtt_auth import MQTTAuthService
 from src.services.device_status_cache import DeviceStatusCache
+from src.services.device_status_tracker import DeviceStatusTracker
 from src.mqtt.mqtt_client import publish_device_command, connect_mqtt
 
 def create_app(config_name=None):
@@ -95,8 +96,20 @@ def create_app(config_name=None):
             # Get MQTT config from the config object
             config_obj = config[config_name or 'development']()
             
-            # Initialize MQTT authentication service with app context
-            mqtt_auth_service = MQTTAuthService(app=app)
+            # Initialize Device Status Tracker with Redis and DB
+            redis_client = app.redis_client  # Use the Redis client we initialized earlier
+            app.logger.info(f"Initializing DeviceStatusTracker with Redis client: {redis_client is not None}")
+            status_tracker = DeviceStatusTracker(
+                redis_client=redis_client,
+                db=db,
+                timeout_seconds=60,
+                enable_db_sync=True
+            )
+            app.status_tracker = status_tracker
+            app.logger.info(f"DeviceStatusTracker initialized - Available: {status_tracker.available}")
+            
+            # Initialize MQTT authentication service with app context and status tracker
+            mqtt_auth_service = MQTTAuthService(app=app, status_tracker=status_tracker)
             
             # Create MQTT service with authentication and app reference for Redis cache
             mqtt_service = create_mqtt_service(config_obj.mqtt_config, mqtt_auth_service, app)
