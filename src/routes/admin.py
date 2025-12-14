@@ -67,7 +67,11 @@ def list_all_devices():
             device_dict = device.to_dict()
 
             # Add online/offline status from status tracker
-            if hasattr(current_app, "status_tracker") and current_app.status_tracker and current_app.status_tracker.available:
+            if (
+                hasattr(current_app, "status_tracker")
+                and current_app.status_tracker
+                and current_app.status_tracker.available
+            ):
                 is_online = current_app.status_tracker.is_device_online(device.id)
                 device_dict["is_online"] = is_online
                 device_dict["status"] = "online" if is_online else "offline"

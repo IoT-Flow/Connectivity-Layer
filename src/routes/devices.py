@@ -659,30 +659,31 @@ def get_all_device_statuses():
     try:
         # Try to get user from JWT token first (for frontend), then from device auth
         user_id = None
-        
+
         # Check for JWT token (frontend user)
-        auth_header = request.headers.get('Authorization', '')
-        if auth_header.startswith('Bearer '):
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
             # For now, extract user from device ownership (temporary solution)
             # In production, you'd validate JWT and extract user_id
             pass
-        
+
         # Check for device authentication (X-API-Key)
-        api_key = request.headers.get('X-API-Key')
+        api_key = request.headers.get("X-API-Key")
         if api_key:
             from src.models import DeviceAuth
+
             device_auth = DeviceAuth.query.filter_by(api_key_hash=api_key, is_active=True).first()
             if device_auth:
                 device = Device.query.get(device_auth.device_id)
                 if device:
                     user_id = device.user_id
-        
+
         # If no authentication, return only public/demo data or require auth
         if not user_id:
             # For demo purposes, return all devices
             # TODO: In production, this should require proper authentication
             user_id = None  # Will query all devices
-        
+
         # Get optional limit/offset parameters
         limit = request.args.get("limit", default=100, type=int)
         offset = request.args.get("offset", default=0, type=int)
@@ -703,7 +704,7 @@ def get_all_device_statuses():
             and current_app.status_tracker
             and current_app.status_tracker.available
         )
-        
+
         redis_available = (
             hasattr(current_app, "device_status_cache")
             and current_app.device_status_cache
@@ -803,7 +804,7 @@ def get_device_status_by_id(device_id):
                 response["is_online"] = is_online
                 response["status"] = "online" if is_online else "offline"  # Human-readable status
                 response["status_source"] = "status_tracker"
-                
+
                 # Get last seen from tracker
                 last_seen = current_app.status_tracker.get_last_seen(device.id)
                 if last_seen:
@@ -828,7 +829,7 @@ def get_device_status_by_id(device_id):
                 response["is_online"] = actual_online_status
                 response["status"] = "online" if actual_online_status else "offline"
                 response["status_source"] = "redis_cache_verified" if cached_status else "database"
-                
+
                 last_seen = current_app.device_status_cache.get_device_last_seen(device.id)
                 if last_seen:
                     response["last_seen"] = last_seen.isoformat()
