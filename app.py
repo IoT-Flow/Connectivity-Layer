@@ -236,13 +236,8 @@ def create_app(config_name=None):
             'message': 'The request was invalid'
         }), 400
     
-    # Create database tables
-    with app.app_context():
-        try:
-            db.create_all()
-            app.logger.info("Database tables created successfully")
-        except Exception as e:
-            app.logger.error(f"Error creating database tables: {str(e)}")
+    # Database tables will be created by the Node.js backend
+    # No database initialization needed here
     
     # Call connect_mqtt() at app startup (before handling requests)
     # Skip MQTT connection in testing mode

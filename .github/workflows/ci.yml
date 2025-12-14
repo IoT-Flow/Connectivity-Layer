@@ -2,9 +2,9 @@ name: Connectivity Layer CI
 
 on:
   push:
-    branches: [ master, main, develop ]
+    branches: [ master,prod, main, develop ]
   pull_request:
-    branches: [ master, main, develop ]
+    branches: [ master,prod, main, develop ]
 
 jobs:
   test:
