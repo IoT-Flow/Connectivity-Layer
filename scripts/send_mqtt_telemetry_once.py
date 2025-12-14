@@ -26,7 +26,7 @@ except ImportError:
     sys.exit(1)
 
 
-def send_single_telemetry(device_id, api_key, mqtt_host="localhost", mqtt_port=1883):
+def send_single_telemetry(device_id, api_key, mqtt_host="4.251.155.59", mqtt_port=1883):
     """Send a single telemetry message via MQTT"""
     
     print("🚀 MQTT Telemetry Sender")
@@ -149,8 +149,8 @@ def main():
     device_id = sys.argv[1]
     api_key = sys.argv[2]
     
-    # Optional MQTT broker settings
-    mqtt_host = sys.argv[3] if len(sys.argv) > 3 else "localhost"
+    # Optional MQTT broker settings (defaults to AKS deployment)
+    mqtt_host = sys.argv[3] if len(sys.argv) > 3 else "4.251.155.59"
     mqtt_port = int(sys.argv[4]) if len(sys.argv) > 4 else 1883
     
     success = send_single_telemetry(device_id, api_key, mqtt_host, mqtt_port)

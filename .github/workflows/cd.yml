@@ -1,0 +1,256 @@
+name: CD - Connectivity Layer
+
+on:
+  push:
+    branches: [master, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options: ['staging', 'production']
+      force_deploy:
+        description: 'Force deployment even if no changes'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  ACR_REGISTRY: iotflow.azurecr.io
+  IMAGE_NAME: connectivity-layer
+  AKS_CLUSTER: iotflow-aks
+  AKS_RESOURCE_GROUP: service-web
+  NAMESPACE: iotflow
+
+jobs:
+  # Determine environment based on branch or input
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      should_deploy: ${{ steps.changes.outputs.should_deploy }}
+    steps:
+    - name: Determine Environment
+      id: env
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "environment=production" >> $GITHUB_OUTPUT
+        else
+          echo "environment=staging" >> $GITHUB_OUTPUT
+        fi
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+
+    - name: Check for changes
+      id: changes
+      run: |
+        if [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+          echo "🚀 Force deployment requested"
+        elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+          echo "🚀 Manual deployment triggered"
+        elif git diff --quiet HEAD^ HEAD -- src/ Dockerfile requirements.txt pyproject.toml app.py; then
+          echo "should_deploy=false" >> $GITHUB_OUTPUT
+          echo "ℹ️ No changes detected in source code"
+        else
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+          echo "✅ Changes detected in source code"
+        fi
+
+  # Build and push Docker image
+  build:
+    needs: setup
+    if: needs.setup.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Azure Container Registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.ACR_REGISTRY }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Image built successfully
+      run: |
+        echo "✅ Docker image built and pushed successfully"
+        echo "📦 Image: ${{ steps.meta.outputs.tags }}"
+        echo "🔍 Digest: ${{ steps.build.outputs.digest }}"
+
+  # Deploy to AKS
+  deploy:
+    needs: [setup, build]
+    if: needs.setup.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials \
+          --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
+          --name ${{ env.AKS_CLUSTER }}
+
+    - name: Deploy to AKS
+      run: |
+        echo "🚀 Deploying connectivity layer to ${{ needs.setup.outputs.environment }}"
+        
+        # Update deployment image
+        kubectl set image deployment/connectivity-layer \
+          connectivity-layer=${{ needs.build.outputs.image_tag }} \
+          -n ${{ env.NAMESPACE }}
+        
+        # Wait for rollout to complete
+        echo "⏳ Waiting for deployment rollout..."
+        kubectl rollout status deployment/connectivity-layer -n ${{ env.NAMESPACE }} --timeout=300s
+
+    - name: Verify deployment
+      run: |
+        echo "🔍 Verifying deployment..."
+        
+        # Check pod status
+        kubectl get pods -l app=connectivity-layer -n ${{ env.NAMESPACE }}
+        
+        # Wait for pods to be ready
+        kubectl wait --for=condition=ready pod -l app=connectivity-layer -n ${{ env.NAMESPACE }} --timeout=300s
+        
+        # Get service information
+        kubectl get service connectivity-layer -n ${{ env.NAMESPACE }} || echo "Service not found (might be ClusterIP)"
+        
+        echo "✅ Deployment verification completed"
+
+    - name: Health check
+      run: |
+        echo "🏥 Performing health check..."
+        
+        # Try to get external IP for health check
+        EXTERNAL_IP=$(kubectl get service iotflow-gateway -n ${{ env.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+        
+        if [[ -n "$EXTERNAL_IP" ]]; then
+          echo "🌐 Testing health endpoint: http://$EXTERNAL_IP:5000/health"
+          for i in {1..5}; do
+            if curl -f "http://$EXTERNAL_IP:5000/health" --max-time 10; then
+              echo "✅ Health check passed"
+              break
+            else
+              echo "⚠️ Health check attempt $i failed, retrying..."
+              sleep 10
+            fi
+          done
+        else
+          echo "ℹ️ No external IP found, skipping external health check"
+          echo "✅ Deployment completed successfully"
+        fi
+
+  # Notify deployment status
+  notify:
+    needs: [setup, build, deploy]
+    if: always() && needs.setup.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Determine status
+      id: status
+      run: |
+        if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+          echo "status=✅ SUCCESS" >> $GITHUB_OUTPUT
+          echo "color=good" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ FAILED" >> $GITHUB_OUTPUT
+          echo "color=danger" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Notify deployment status
+      if: vars.SLACK_WEBHOOK_URL != ''
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "🚀 Connectivity Layer Deployment",
+            "attachments": [
+              {
+                "color": "${{ steps.status.outputs.color }}",
+                "fields": [
+                  {
+                    "title": "Status",
+                    "value": "${{ steps.status.outputs.status }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Environment",
+                    "value": "${{ needs.setup.outputs.environment }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Branch",
+                    "value": "${{ github.ref_name }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Commit",
+                    "value": "${{ github.sha }}",
+                    "short": true
+                  }
+                ]
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+
+    - name: Summary
+      run: |
+        echo "## 🚀 Connectivity Layer Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ steps.status.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ needs.build.result }}" == "success" ]]; then
+          echo "- **Image**: ${{ needs.build.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+        fi

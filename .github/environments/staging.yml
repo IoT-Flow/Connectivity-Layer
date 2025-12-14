@@ -1,0 +1,7 @@
+# Staging Environment Configuration
+name: staging
+protection_rules: []
+variables:
+  DEPLOYMENT_TIMEOUT: "300"
+  HEALTH_CHECK_RETRIES: "3"
+  ENVIRONMENT_NAME: "staging"
