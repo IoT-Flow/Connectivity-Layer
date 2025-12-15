@@ -1,6 +1,6 @@
-from flask import Blueprint, request, jsonify
+import json
+from flask import Blueprint, request, jsonify, current_app
 from src.models import db, Device, DeviceControl
-from src.mqtt.mqtt_client import publish_device_command
 from src.middleware.auth import authenticate_device
 
 control_bp = Blueprint("control", __name__, url_prefix="/api/v1/devices")
@@ -35,11 +35,17 @@ def control_device(device_id):
     db.session.add(control)
     db.session.commit()
 
+    # Publish command via main MQTT service
     try:
-        publish_device_command(device_id, command, parameters)
+        if hasattr(current_app, 'mqtt_service') and current_app.mqtt_service:
+            topic = f"devices/{device_id}/control"
+            payload = {"command": command, "parameters": parameters}
+            current_app.mqtt_service.publish(topic, json.dumps(payload))
+        else:
+            current_app.logger.warning("MQTT service not available for publishing command")
     except Exception as e:
+        current_app.logger.error(f"Failed to publish MQTT command: {e}")
         # Log error but don't fail - command is stored in DB
-        pass
 
     return (
         jsonify(

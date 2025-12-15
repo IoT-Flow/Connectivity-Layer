@@ -9,7 +9,7 @@ from src.config.config import Config
 MQTT_BROKER = Config.MQTT_HOST
 MQTT_PORT = Config.MQTT_PORT
 
-mqtt_client = mqtt.Client()
+mqtt_client = mqtt.Client(client_id="iotflow_legacy_client")
 logger = logging.getLogger(__name__)
 
 

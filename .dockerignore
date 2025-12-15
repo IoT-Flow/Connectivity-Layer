@@ -105,3 +105,6 @@ esp32_examples/
 
 # Scripts
 *.sh
+
+# Instance directory (contains local data)
+instance/

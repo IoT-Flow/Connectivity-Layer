@@ -20,7 +20,6 @@ from src.mqtt.client import create_mqtt_service
 from src.services.mqtt_auth import MQTTAuthService
 from src.services.device_status_cache import DeviceStatusCache
 from src.services.device_status_tracker import DeviceStatusTracker
-from src.mqtt.mqtt_client import publish_device_command, connect_mqtt
 
 def create_app(config_name=None):
     """Application factory pattern"""
@@ -244,15 +243,7 @@ def create_app(config_name=None):
         except Exception as e:
             app.logger.error(f"Error creating database tables: {str(e)}")
     
-    # Call connect_mqtt() at app startup (before handling requests)
-    # Skip MQTT connection in testing mode
-    if not os.environ.get('TESTING', 'false').lower() == 'true':
-        try:
-            connect_mqtt()
-        except Exception as e:
-            app.logger.warning(f"MQTT connection failed during startup: {e}")
-    else:
-        app.logger.info("Skipping MQTT connection in testing mode")
+    # MQTT connection is handled by the main MQTT service above
     
     return app
 

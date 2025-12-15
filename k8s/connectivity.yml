@@ -8,7 +8,7 @@ metadata:
     component: backend
     tier: connectivity
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: connectivity-layer
@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: connectivity-layer
-        image: iotflow.azurecr.io/connectivity-layer:latest
+        image: iotflow.azurecr.io/connectivity-layer:mqtt-fix
         ports:
         - containerPort: 5000
           name: http
@@ -60,6 +60,8 @@ spec:
           value: "admin"
         - name: MQTT_PASSWORD
           value: "admin123"
+        - name: MQTT_CLIENT_ID
+          value: "iotflow_server"
         - name: SECRET_KEY
           valueFrom:
             secretKeyRef:
