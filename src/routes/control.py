@@ -37,7 +37,7 @@ def control_device(device_id):
 
     # Publish command via main MQTT service
     try:
-        if hasattr(current_app, 'mqtt_service') and current_app.mqtt_service:
+        if hasattr(current_app, "mqtt_service") and current_app.mqtt_service:
             topic = f"devices/{device_id}/control"
             payload = {"command": command, "parameters": parameters}
             current_app.mqtt_service.publish(topic, json.dumps(payload))
