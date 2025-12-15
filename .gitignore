@@ -29,7 +29,7 @@ test/
 backup_influxdb
 
 # Poetry
-poetry.lock
+# poetry.lock  # Keep poetry.lock for reproducible builds
 
 # PyInstaller
 *.manifest
