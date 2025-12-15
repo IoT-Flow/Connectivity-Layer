@@ -80,7 +80,7 @@ jobs:
     if: needs.setup.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
     outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
+      image_tag: ${{ steps.set_output.outputs.image }}
       image_digest: ${{ steps.build.outputs.digest }}
     steps:
     - uses: actions/checkout@v4
@@ -118,11 +118,14 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         provenance: false
 
-    - name: Image built successfully
+    - name: Set image output
+      id: set_output
       run: |
+        # Use the SHA-based tag for deployment (most specific)
+        IMAGE="${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${GITHUB_SHA::7}"
+        echo "image=$IMAGE" >> $GITHUB_OUTPUT
         echo "✅ Docker image built and pushed successfully"
-        echo "📦 Image: ${{ steps.meta.outputs.tags }}"
-        echo "🔍 Digest: ${{ steps.build.outputs.digest }}"
+        echo "📦 Deploy image: $IMAGE"
 
   # Deploy to AKS
   deploy:
