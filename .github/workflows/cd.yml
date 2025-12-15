@@ -122,7 +122,8 @@ jobs:
       id: set_output
       run: |
         # Use the SHA-based tag for deployment (most specific)
-        IMAGE="${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${GITHUB_SHA::7}"
+        SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+        IMAGE="iotflow.azurecr.io/connectivity-layer:${{ github.ref_name }}-${SHORT_SHA}"
         echo "image=$IMAGE" >> $GITHUB_OUTPUT
         echo "✅ Docker image built and pushed successfully"
         echo "📦 Deploy image: $IMAGE"
@@ -151,12 +152,15 @@ jobs:
           --name ${{ env.AKS_CLUSTER }}
 
     - name: Deploy to AKS
+      env:
+        IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
       run: |
         echo "🚀 Deploying connectivity layer to ${{ needs.setup.outputs.environment }}"
+        echo "📦 Image tag: $IMAGE_TAG"
         
         # Update deployment image
         kubectl set image deployment/connectivity-layer \
-          connectivity-layer=${{ needs.build.outputs.image_tag }} \
+          connectivity-layer=$IMAGE_TAG \
           -n ${{ env.NAMESPACE }}
         
         # Wait for rollout to complete
