@@ -152,10 +152,12 @@ jobs:
           --name ${{ env.AKS_CLUSTER }}
 
     - name: Deploy to AKS
-      env:
-        IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
       run: |
         echo "🚀 Deploying connectivity layer to ${{ needs.setup.outputs.environment }}"
+        
+        # Construct image tag directly (same logic as build job)
+        SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+        IMAGE_TAG="${{ env.ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${SHORT_SHA}"
         echo "📦 Image tag: $IMAGE_TAG"
         
         # Update deployment image
