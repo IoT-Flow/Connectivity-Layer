@@ -1,8 +1,12 @@
 name: CD - Connectivity Layer
 
 on:
-  push:
+  # Trigger after CI completes successfully
+  workflow_run:
+    workflows: ["Connectivity Layer CI"]
+    types: [completed]
     branches: [master, develop]
+  # Manual trigger still available
   workflow_dispatch:
     inputs:
       environment:
@@ -28,24 +32,37 @@ jobs:
   # Determine environment based on branch or input
   setup:
     runs-on: ubuntu-latest
+    # Only run if CI succeeded or manual trigger
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     outputs:
       environment: ${{ steps.env.outputs.environment }}
       should_deploy: ${{ steps.changes.outputs.should_deploy }}
+      ref: ${{ steps.env.outputs.ref }}
+      sha: ${{ steps.env.outputs.sha }}
     steps:
     - name: Determine Environment
       id: env
       run: |
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
           echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
-        elif [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
-          echo "environment=production" >> $GITHUB_OUTPUT
+          echo "ref=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
         else
-          echo "environment=staging" >> $GITHUB_OUTPUT
+          # workflow_run event - get info from the triggering workflow
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          echo "ref=$BRANCH" >> $GITHUB_OUTPUT
+          echo "sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          if [[ "$BRANCH" == "master" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
         fi
 
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
     - name: Check for changes
       id: changes
@@ -57,21 +74,9 @@ jobs:
           echo "should_deploy=true" >> $GITHUB_OUTPUT
           echo "🚀 Manual deployment triggered"
         else
-          # Check if HEAD^ exists (might not on first commit or shallow clone)
-          if git rev-parse HEAD^ >/dev/null 2>&1; then
-            # git diff --quiet returns 0 if NO changes, 1 if changes exist
-            if git diff --quiet HEAD^ HEAD -- src/ Dockerfile requirements.txt pyproject.toml app.py .github/workflows/cd.yml 2>/dev/null; then
-              echo "should_deploy=false" >> $GITHUB_OUTPUT
-              echo "ℹ️ No changes detected in source code"
-            else
-              echo "should_deploy=true" >> $GITHUB_OUTPUT
-              echo "✅ Changes detected in source code"
-            fi
-          else
-            # First commit or shallow clone - always deploy
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-            echo "🚀 First commit or shallow clone - deploying"
-          fi
+          # Triggered by CI - always deploy since CI passed
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+          echo "✅ CI passed - deploying"
         fi
 
   # Build and push Docker image
